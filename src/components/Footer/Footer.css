@@ -1,0 +1,133 @@
+/* ============================================
+   FOOTER COMPONENT STYLES
+   ============================================ */
+
+.site-footer {
+  background: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-subtle);
+  padding: 3rem 0 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.site-footer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--primary) 30%,
+    var(--primary-light) 50%,
+    var(--primary) 70%,
+    transparent 100%
+  );
+}
+
+.footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ── Columns Grid ── */
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* ── Column headings ── */
+.footer-col-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--secondary-dark);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+/* ── Links ── */
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.footer-links li a,
+.footer-services a {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color var(--transition-fast), padding-left var(--transition-fast);
+  display: inline-block;
+}
+
+.footer-links li a:hover,
+.footer-services a:hover {
+  color: var(--primary);
+  padding-left: 4px;
+}
+
+.footer-services {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* ── Bottom bar ── */
+.footer-bottom {
+  border-top: 1px solid var(--border-glass);
+  padding-top: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.footer-copy {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.footer-bottom-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.footer-bottom-links a {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.footer-bottom-links a:hover {
+  color: var(--primary);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 991px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 575px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+  }
+}

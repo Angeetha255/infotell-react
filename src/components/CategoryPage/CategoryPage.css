@@ -1,0 +1,526 @@
+/* ============================================
+   CATEGORY PAGE STYLES
+   ============================================ */
+
+.category-page {
+  padding-top: 75px;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* ── Banner Container (Dock Element Removed) ── */
+.category-banner {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.category-banner-slide {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+
+.category-banner-slide.active {
+  display: block;
+}
+
+.category-banner-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.5;
+}
+
+/* ── Typography & Global Color Directives ── */
+.breadcrumb-nav{
+  color: var(--text-secondary);
+}
+.category-page-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: var(--gradient-text);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.sidebar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--secondary) !important;
+  margin-bottom: 1.1rem;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 0.5rem;
+}
+
+/* ── Layout Segment Grid Framework ── */
+.category-layout {
+  margin: 20px 0;
+}
+.category-layout-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Left Segment: Scrollable inside Viewport standard grids */
+.category-main-scrollable {
+  max-height: calc(100vh - 10px);
+  overflow-y: auto;
+  padding-right: 12px;
+}
+
+/* Hide scrollbars for slick aesthetics if desired */
+.category-main-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+.category-main-scrollable::-webkit-scrollbar-thumb {
+  background: var(--primary-dark);
+  border-radius: 3px;
+}
+
+/* Right Segment: Rigid Fixed/Sticky Layout Enclosure */
+.category-sidebar-fixed {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 95px; 
+  height: max-content;
+}
+
+.sidebar-sticky-enclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Filter Chips ── */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-chip {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  padding: 0.45rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.filter-chip.active-chip {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #fff5f5;
+}
+
+.sort-dropdown-wrapper {
+  position: relative;
+}
+
+.sort-interactive-select-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  z-index: 50;
+  min-width: 160px;
+}
+
+.sort-option {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+.sort-option:hover {
+  background: #f1f5f9;
+  color: var(--primary);
+}
+
+.sort-option.selected {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Listing Cards ── */
+.listing-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem 0.65rem;
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+.listing-img {
+  width: 170px;
+  height: 130px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.listing-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listing-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.listing-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--secondary);
+  margin-bottom: 0.25rem;
+}
+
+.listing-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rating-badge {
+  background: var(--primary-light);
+  color: var(--secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.rating-count {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.proximity-geo-tag {
+  font-size: 0.78rem;
+  color: var(--secondary-dark);
+  background: var(--secondary-glow);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.tag-top-search {
+  background: #fef3c7;
+  color: #d97706;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.listing-meta {
+  font-size: 0.82rem;
+  color: var(--secondary-dark);
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.listing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+}
+
+.listing-tag {
+  font-size: 0.72rem;
+  border: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #475569;
+}
+
+/* ── Actions Base Styles ── */
+.listing-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-call {
+  background: var(--primary-light);
+  color: var(--secondary);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+:is(.btn-call, .btn-whatsapp):hover{
+  color: var(--primary);
+  background-color: var(--secondary);
+}
+
+.btn-whatsapp {
+  background: #ffffff;
+  border: 1px solid var(--secondary-dark);
+  color: var(--secondary-dark);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Button Price Configuration Map Overridden with Gradient Utility */
+.btn-price {
+  background: var(--gradient-primary) !important;
+  color: #ffffff !important;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ── Ad Cards ── */
+.advertisement-card-container {
+  position: relative;
+  background: #f1f5f9;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ad-close-trigger {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #e2e8f0;
+  border: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.ad-badge-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.ad-card-inner-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.ad-graphics-frame {
+  width: 80px;
+  height: 70px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ad-graphics-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ad-marketing-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+}
+
+.ad-body-text {
+  font-size: 0.8rem;
+  color: #475569;
+  margin: 0 0 6px 0;
+}
+
+.ad-cta-action-btn {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+/* ── Sidebar Structural Cards ── */
+.sidebar-card, .related-categories-card-box, .related-keywords-card-box {
+  background: #ffffff;
+  border: 1px solid var(--primary-glow);
+  border-radius: 10px;
+  padding: 1.25rem 0.65rem;
+  border-top: 5px solid var(--primary-glow);
+  border-left: 5px solid var(--primary-glow);
+}
+
+.sidebar-subtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.sidebar-input {
+  width: 100%;
+  padding: 0.6rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+
+.sidebar-input:focus{
+  outline: none;
+  border: 1px solid var(--primary-dark);
+}
+
+.sidebar-submit {
+  width: 100%;
+  background: var(--secondary);
+  color: var(--primary);
+  border: 1px solid var(--primary-dark);
+  padding: 0.65rem;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Related Categories Widget */
+.related-categories-vertical-stack {
+  display: flex;
+  flex-direction: column;
+  row-gap: 5px;
+}
+
+.related-category-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem;
+  
+  background-color: var(--primary-glow);
+  border-left: 3px solid var(--secondary-dark);
+  border-right: 3px solid var(--secondary-dark);
+  border-bottom: 1px solid var(--secondary-dark);
+  border-top: 1px solid var(--secondary-dark);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.related-category-row-item span {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--secondary-dark);
+}
+
+.related-cat-arrow {
+  font-size: 0.75rem;
+  color: var(--secondary-dark);
+}
+
+/* ── Related Keywords Element Box ── */
+.keywords-flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.keyword-pill-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--secondary-dark);
+  background: var(--primary-glow);
+  border: 1px solid var(--secondary-dark);
+  padding: 4px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.keyword-pill-tag:hover {
+  background: rgba(78, 1, 5, 0.1);
+}
+
+/* ── Lazy Scaffolds ── */
+.backend-lazy-skeleton {
+  text-align: center;
+  padding: 15px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.empty-results-fallback {
+  text-align: center;
+  padding: 20px;
+  color: #64748b;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN ADAPTATIONS
+   ============================================ */
+@media (max-width: 991px) {
+  .category-layout-row {
+    flex-direction: column;
+  }
+  .category-main-scrollable {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+  .category-sidebar-fixed {
+    position: static;
+    width: 100%;
+    margin-top: 1.5rem;
+  }
+}
+
+@media (max-width: 575px) {
+  .listing-card {
+    flex-direction: column;
+  }
+  .listing-img {
+    width: 100%;
+    height: 140px;
+  }
+  .listing-actions {
+    flex-direction: column;
+  }
+  .ad-card-inner-layout {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,227 @@
+/* ============================================
+   INFOTELL GLOBAL STYLES
+   ============================================ */
+
+:root {
+  --primary: #D4AF37;
+  --primary-dark: #b8942a;
+  --primary-light: #f0d060;
+  --primary-glow: rgba(212, 175, 55, 0.25);
+  --secondary: #4E0105;
+  --secondary-dark: #360003;
+  --secondary-light: #7a0109;
+  --secondary-glow: rgba(138, 24, 24, 0.25);
+
+  --bg: #ffffff;
+  --bg-card: #edeaea;
+  --bg-surface: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.04);
+  --bg-surface-alt: #f2dfc18c;
+
+  --text-primary: #f0f0f0;
+  --text-secondary: #000000;
+  --text-muted: #7a7a8f;
+  
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+  --gradient-text: linear-gradient(180deg, var(--primary), var(--secondary));
+
+  --border-subtle: rgba(212, 175, 55, 0.12);
+  --border-glass: rgba(255, 255, 255, 0.08);
+
+  --shadow-gold: 0 0 20px rgba(212, 175, 55, 0.15);
+  --shadow-deep: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  --radius-sm: 6px;
+  --radius-md: 15px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  --transition-fast: 0.18s ease;
+  --transition-base: 0.28s ease;
+  --transition-slow: 0.45s ease;
+
+  --font-display: 'Georgia', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--primary-light);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ============================================
+   COSMIC BACKGROUND EFFECT
+   ============================================ */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(78, 1, 5, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(212, 175, 55, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 0%, rgba(212, 175, 55, 0.04) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================
+   COSMIC STARS PARTICLE EFFECT
+   ============================================ */
+.cosmic-bg {
+  position: relative;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.glass-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.gold-border {
+  border: 1px solid var(--border-subtle);
+}
+
+.glow-text {
+  text-shadow: 0 0 20px var(--primary-glow);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.section-title span {
+  color: var(--primary);
+}
+
+/* ============================================
+   FADE-IN ANIMATIONS
+   ============================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 var(--primary-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--primary-dark);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ============================================
+   OVERRIDE BOOTSTRAP FOR DARK THEME
+   ============================================ */
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: var(--bg);
+}
+
+.badge.bg-danger {
+  background-color: var(--secondary) !important;
+}
+
+/* ============================================
+   HIDE SCROLLBAR UTILITY
+   ============================================ */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

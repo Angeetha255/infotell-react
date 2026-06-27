@@ -1,0 +1,458 @@
+/* ============================================
+   HOME PAGE STYLES
+   ============================================ */
+
+.home-page {
+  padding-top: 72px;
+  /* offset fixed header */
+}
+
+/* ── Hero Section ── */
+.hero-section {
+  padding: 2.75rem 0;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+/* ── Carousel ── */
+.home-carousel {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.carousel-slide {
+  display: none;
+  position: relative;
+}
+
+.carousel-slide.active {
+  display: block;
+  animation: fadeIn 0.5s ease;
+}
+
+.carousel-slide img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  display: block;
+}
+
+.carousel-controls {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.4rem;
+  z-index: 5;
+}
+
+.carousel-btn {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: background var(--transition-fast);
+}
+
+.carousel-btn:hover {
+  background: var(--primary);
+  color: var(--bg-dark);
+}
+
+/* ── Hero Category Cards ── */
+.hero-categories {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.hero-cat-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border-glass);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  height: 100%;
+}
+
+.hero-cat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-gold);
+}
+
+.hero-cat-card img {
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.hero-cat-card.bg-entertainment{
+  background-color: #850164;
+}
+
+.hero-cat-card.bg-professional {
+  background-color: #8b5402;
+}
+
+.hero-cat-card.bg-repair {
+  background-color: #5a5e5a;
+}
+
+.hero-cat-card.bg-doctor {
+  background-color: #6b0401;
+}
+
+.hero-cat-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px 8px 8px;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  margin: 0;
+  pointer-events: none;
+}
+
+/* ── Category Grid (dial) ── */
+.dial-category-section {
+  padding: 2rem 0;
+  position: relative;
+  z-index: 1;
+}
+
+.dial-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.75rem;
+}
+
+.category-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 0.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--secondary-glow);
+  border-bottom: 2px solid var(--secondary-glow);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  text-align: center;
+  animation: fadeInUp 0.4s ease both;
+  transform: scale(1);
+}
+
+.category-box:hover {
+  border-color: var(--primary);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px var(--secondary-glow);
+  transform: scale(1.02);
+}
+
+.category-box img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+}
+
+.category-box p {
+  font-size: 0.72rem;
+  color: var(--secondary-dark);
+  margin: 0;
+  line-height: 1.3;
+  font-weight: 600;
+  transition: color var(--transition-fast);
+}
+
+.category-box:hover p {
+  color: var(--secondary);
+}
+
+/* ── Service Sections (Beauty & Spa, etc.) ── */
+.service-sections {
+  padding: 1.5rem 0;
+}
+
+.service-category-row {
+  margin-bottom: 2rem;
+}
+
+.service-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.service-row-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--secondary-light);
+}
+
+.view-all-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: color var(--transition-fast);
+  padding: 5px 4px;
+}
+
+.view-all-btn:hover {
+  color: var(--primary-light);
+  border: 1px solid var(--secondary);
+  padding: 5px;
+  border-radius: 15px;
+}
+
+.items-slider-container {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+
+.items-slider-container::-webkit-scrollbar {
+  display: none;
+}
+
+.item-card {
+  position: relative;
+  min-width: 140px;
+  max-width: 170px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.item-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-gold);
+}
+
+.item-card img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  display: block;
+}
+
+.item-card p {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0;
+  background: var(--bg-card);
+}
+
+/* ── Trending Nearby Cards ── */
+.trending-section {
+  padding: 1.5rem 0 2rem;
+}
+
+.trending-section-header {
+  margin-bottom: 1.5rem;
+}
+
+.trending-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge-new {
+  background: var(--primary-light);
+  color: var(--secondary-dark);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.trending-section-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+.trending-cards-wrapper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  gap: 2rem;
+  padding-bottom: 0.5rem;
+}
+
+.trending-cards-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.trending-card {
+  min-width: 220px;
+  height: 100px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  display: flex;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.trending-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-3px);
+}
+
+.trending-card-img {
+  width: 85px;
+  flex-shrink: 0;
+}
+
+.trending-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trending-card-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.trending-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--secondary-dark);
+  margin-bottom: 0.35rem;
+}
+
+.trending-card-link {
+  font-size: 0.78rem;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: gap var(--transition-fast);
+}
+
+.trending-card-link:hover {
+  gap: 0.5rem;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 991px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-categories {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .dial-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .trending-cards-wrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .dial-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .hero-categories {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .trending-cards-wrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hero-cat-card {
+    height: 170px;
+  }
+}
+
+@media (max-width: 575px) {
+  .dial-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .trending-cards-wrapper {
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .trending-card {
+    width: 220px;
+  }
+
+  .category-box img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .carousel-slide img {
+    height: 200px;
+  }
+
+  .hero-categories {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .dial-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
