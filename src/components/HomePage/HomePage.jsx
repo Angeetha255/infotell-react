@@ -100,7 +100,6 @@ const TRENDING_CARDS = [
   { src: './img/product-images/resturent.jfif', title: 'Restaurant' },
   { src: './img/product-images/book-shop.webp', title: 'Book Shops' },
   { src: './img/product-images/tourism.webp',   title: 'Tourism' },
-  { src: './img/product-images/tourism.webp',   title: 'Tourism' },
 ];
 
 /* ── Components ── */

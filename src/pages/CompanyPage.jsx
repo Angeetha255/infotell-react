@@ -1,1 +1,2 @@
-export { default } from '../components/CompanyPage/CompanyPage';
+import CompanyPage from '../components/CompanyPage/CompanyPage';
+export default CompanyPage;

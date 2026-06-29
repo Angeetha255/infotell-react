@@ -1,1 +1,2 @@
-export { default } from '../components/CategoryPage/CategoryPage';
+import CategoryPage from '../components/CategoryPage/CategoryPage';
+export default CategoryPage;
