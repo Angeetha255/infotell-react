@@ -96,64 +96,89 @@ export default function ProductPage() {
     const fetchProductData = async () => {
       setLoading(true);
       try {
-        // Fetch product details
-        const productResponse = await apiService.products.getById(productId);
-        if (productResponse.data) {
-          setProductData(productResponse.data);
+        // Fetch all products and find the one matching the productId
+        // (getById endpoint returns 500 error, so we use getAll as workaround)
+        const allProductsResponse = await apiService.products.getAll();
+        let foundProduct = null;
+        const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+        
+        if (allProductsResponse.data) {
+          // Find the specific product by matching the string/number id
+          foundProduct = allProductsList.find(p => String(p.id) === String(productId));
+        }
 
-          // Fetch similar products
-          const similarResponse = await apiService.products.getByCategory(productResponse.data.categoryId);
-          if (similarResponse.data) {
-            const similarArray = Array.isArray(similarResponse.data)
-              ? similarResponse.data
-              : (similarResponse.data.products || similarResponse.data.data || []);
-            
-            const mappedSimilar = similarArray
-              .filter(p => p.id !== productId)
-              .slice(0, 5)
-              .map(p => {
-                let simImages;
-                if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
-                  simImages = p.productImages.map(img => resolveImageUrl(img));
-                } else if (p.coverImage) {
-                  simImages = [resolveImageUrl(p.coverImage)];
-                } else if (p.images && p.images.length > 0) {
-                  simImages = p.images.map(img => resolveImageUrl(img));
-                } else if (p.image) {
-                  simImages = [resolveImageUrl(p.image)];
-                } else {
-                  simImages = [PLACEHOLDER_IMAGE];
-                }
-                const displayPrice = p.discountPrice || p.productMrp || p.price || '';
-                return {
-                  id: p.id,
-                  name: p.productName || p.name || 'Product',
-                  price: displayPrice ? `₹${displayPrice}` : '',
-                  images: simImages
-                };
-              });
-            setSimilarProducts(mappedSimilar);
-          }
+        if (foundProduct) {
+          setProductData(foundProduct);
 
-          // Fetch company info
-          if (productResponse.data.businessId) {
-            const companyResponse = await apiService.businesses.getById(productResponse.data.businessId);
-            if (companyResponse.data) {
-              setCompanyInfo(companyResponse.data);
+          // Fetch similar products based on same productCategory or companyId
+          const similarList = allProductsList
+            .filter(p => String(p.id) !== String(productId))
+            .filter(p => p.productCategory === foundProduct.productCategory || String(p.companyId) === String(foundProduct.companyId))
+            .slice(0, 5)
+            .map(p => {
+              let simImages;
+              if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                simImages = p.productImages.map(img => resolveImageUrl(img));
+              } else if (p.coverImage) {
+                simImages = [resolveImageUrl(p.coverImage)];
+              } else if (p.images && p.images.length > 0) {
+                simImages = p.images.map(img => resolveImageUrl(img));
+              } else if (p.image) {
+                simImages = [resolveImageUrl(p.image)];
+              } else {
+                simImages = [PLACEHOLDER_IMAGE];
+              }
+              const displayPrice = p.discountPrice || p.productMrp || p.price || '';
+              return {
+                id: p.id,
+                name: p.productName || p.name || 'Product',
+                price: displayPrice ? `₹${displayPrice}` : '',
+                images: simImages
+              };
+            });
+          setSimilarProducts(similarList);
+
+          // Fetch company info from http://localhost:5006/api/public/companies/{companyId}
+          if (foundProduct.companyId) {
+            try {
+              const companyResponse = await apiService.businesses.getById(foundProduct.companyId);
+              if (companyResponse.data) {
+                // API returns { company: { ... }, businesses: [...], products: [...] }
+                const companyData = companyResponse.data.company || companyResponse.data;
+                setCompanyInfo({
+                  name: companyData.businessName || companyData.name || company,
+                  address: [companyData.area, companyData.district, companyData.state]
+                    .filter(Boolean)
+                    .join(', ') || companyData.address || "Address not available",
+                  phone: companyData.mobileNumber || companyData.phone || '',
+                  rating: companyData.rating || "0.0",
+                  reviewCount: companyData.reviewCount || 0
+                });
+              }
+            } catch (err) {
+              console.error("Error fetching company info:", err);
             }
           }
 
           // Fetch product reviews
-          const reviewsResponse = await apiService.reviews.getByProduct(productId);
-          if (reviewsResponse.data) {
-            const mappedComments = reviewsResponse.data.map(r => ({
-              id: r.id,
-              user: r.userName,
-              rating: r.rating,
-              date: new Date(r.createdAt).toLocaleDateString(),
-              text: r.comment
-            }));
-            setUserComments(mappedComments);
+          try {
+            const reviewsResponse = await apiService.reviews.getByProduct(productId);
+            if (reviewsResponse.data) {
+              const reviewsList = Array.isArray(reviewsResponse.data)
+                ? reviewsResponse.data
+                : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+              const mappedComments = reviewsList.map(r => ({
+                id: r.id,
+                user: r.userName,
+                rating: r.rating,
+                date: new Date(r.createdAt).toLocaleDateString(),
+                text: r.comment
+              }));
+              setUserComments(mappedComments);
+            }
+          } catch (reviewError) {
+            console.error("Error fetching reviews:", reviewError);
+            setUserComments([]);
           }
         }
       } catch (error) {
@@ -186,11 +211,23 @@ export default function ProductPage() {
 
   const displayPrice = productData.discountPrice || productData.productMrp || productData.price || '';
 
+  // Map API specifications [{name, detail}] to specs [{label, value}]
+  const mapSpecs = (specs) => {
+    if (!specs) return [];
+    if (Array.isArray(specs) && specs.length > 0) {
+      return specs.map(s => ({
+        label: s.name || s.label || '',
+        value: s.detail || s.value || ''
+      }));
+    }
+    return [];
+  };
+
   const productEntity = {
     name: productData.productName || productData.name || 'Product',
     price: displayPrice ? `₹${displayPrice}` : '',
-    description: productData.description,
-    specs: productData.specs || [],
+    description: productData.descriptions || productData.description || '',
+    specs: mapSpecs(productData.specifications || productData.specs),
     media: buildMediaArray(productData)
   };
 

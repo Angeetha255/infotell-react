@@ -463,8 +463,10 @@ export default function CompanyPage() {
               </div>
             </div>
 
-            {/* PRODUCT LISTING CARD CAROUSEL - Using products from Products API filtered by companyId */}
-            <ImageCardXFlow cardTitle={"Product"} DATAS={mappedProducts} onCardClick={handleProductNavigation} />
+            {/* PRODUCT LISTING CARD CAROUSEL - Only render if products exist */}
+            {mappedProducts.length > 0 && (
+              <ImageCardXFlow cardTitle={"Product"} DATAS={mappedProducts} onCardClick={handleProductNavigation} />
+            )}
 
             {/* ESTABLISHMENT DATA SEGMENT SECTION CARD */}
             <div className="profile-card">
