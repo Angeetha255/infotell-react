@@ -1,114 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { apiService } from "../../services/api";
 import "./CategoryPage.css";
-
-// ── BACKEND DATA MODELS ──
-const BACKEND_BANNERS = [
-  {
-    src: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80",
-    alt: "Software Engineering Services",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
-    alt: "Innovative Tech Space",
-  },
-];
-
-const BACKEND_LISTINGS = [
-  {
-    id: 1,
-    name: "Gv Solutions",
-    rating: 5.0,
-    ratingCount: 6,
-    topTag: "Top Search",
-    location: "Madurai Main",
-    distance: 1.2,
-    popularity: 98,
-    years: "12 Years in Business",
-    tags: ["Software Companies", "Online Websites"],
-    phone: "08460506156",
-    img: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: true,
-  },
-  {
-    id: 2,
-    name: "TechNest Systems",
-    rating: 4.8,
-    ratingCount: 14,
-    topTag: "JD Verified",
-    location: "Anna Nagar, Madurai",
-    distance: 3.5,
-    popularity: 85,
-    years: "8 Years in Business",
-    tags: ["Mobile Apps", "Web Design"],
-    phone: "09876543210",
-    img: "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: false,
-  },
-  {
-    id: 3,
-    name: "PixelForge Studio",
-    rating: 4.5,
-    ratingCount: 9,
-    topTag: null,
-    location: "KK Nagar, Madurai",
-    distance: 0.8,
-    popularity: 72,
-    years: "5 Years in Business",
-    tags: ["UI/UX Design", "Branding"],
-    phone: "07890123456",
-    img: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=400",
-    isVerified: false,
-    isTrust: true,
-  },
-  {
-    id: 4,
-    name: "Apex Digital Systems",
-    rating: 4.2,
-    ratingCount: 22,
-    topTag: "Popular",
-    location: "Simmakkal, Madurai",
-    distance: 4.1,
-    popularity: 91,
-    years: "10 Years in Business",
-    tags: ["Cloud Computing", "ERP Software"],
-    phone: "09441234567",
-    img: "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: true,
-  },
-];
-
-const BACKEND_RELATED_CATEGORIES = [
-  { id: "rel-1", name: "Web Designers in Madurai", count: "142 options" },
-  { id: "rel-2", name: "Mobile App Developers", count: "98 options" },
-  { id: "rel-3", name: "Digital Marketing Agencies", count: "210 options" },
-];
-
-const BACKEND_KEYWORDS = [
-  "Custom ERP",
-  "SaaS Solutions",
-  "React Developers",
-  "Madurai IT Hub",
-  "E-Commerce Build",
-  "Cloud Hosting",
-  "UI/UX Audits",
-  "SEO Strategy",
-];
-
-const BACKEND_ADS = [
-  {
-    id: "ad-pos-1",
-    insertAfterIndex: 1,
-    title: "Upgrade to Premium Enterprise Cloud Storage",
-    content:
-      "Get 2TB high-speed redundant storage for your agency. 50% discount for local Madurai enterprises this month.",
-    img: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=400",
-    cta: "Claim Offer",
-  },
-];
 
 // ── LAZY-LOAD VIEWPORT WRAPPER COMPONENT ──
 function LazyViewElement({ children, onVisible }) {
@@ -212,10 +105,12 @@ export default function CategoryPage() {
 
   const [banners, setBanners] = useState([]);
   const [listings, setListings] = useState([]);
+  const [allListings, setAllListings] = useState([]);
   const [relatedCategories, setRelatedCategories] = useState([]);
   const [keywords, setKeywords] = useState([]);
   const [activeAds, setActiveAds] = useState([]);
   const [dismissedAdIds, setDismissedAdIds] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [sortBy, setSortBy] = useState("relevance");
   const [filterVerified, setFilterVerified] = useState(true);
@@ -225,36 +120,86 @@ export default function CategoryPage() {
   // Lead form state
   const [leadForm, setLeadForm] = useState({ name: "", mobile: "", location: "" });
 
-  const triggerLazyBannerFetch = () => {
-    if (banners.length === 0) setBanners(BACKEND_BANNERS);
+  const triggerLazyBannerFetch = async () => {
+    if (banners.length === 0) {
+      try {
+        const response = await apiService.banners.getByCategory(query);
+        if (response.data) {
+          setBanners(response.data);
+        } else {
+          setBanners([]);
+        }
+      } catch (error) {
+        console.error("Error fetching banners:", error);
+        setBanners([]);
+      }
+    }
   };
 
-  const filteredData = useMemo(() => {
-    return BACKEND_LISTINGS.filter((item) => {
-      const cleanSearchLocation = city.toLowerCase().trim();
-      const cleanSearchTag = query.toLowerCase().trim();
-
-      const matchesLocation =
-        cleanSearchLocation === "" ||
-        item.location.toLowerCase().includes(cleanSearchLocation);
-
-      const matchesTag =
-        cleanSearchTag === "" ||
-        item.tags.some((tag) => tag.toLowerCase().includes(cleanSearchTag));
-
-      return matchesLocation && matchesTag;
-    });
-  }, [city, query]);
-
-  const triggerLazyListingFetch = () => {
-    setListings(filteredData);
+  const triggerLazyListingFetch = async () => {
+    if (allListings.length === 0) {
+      try {
+        setLoading(true);
+        const response = await apiService.businesses.search(query, { city });
+        if (response.data) {
+          const mappedListings = response.data.map(biz => ({
+            id: biz.id,
+            name: biz.name,
+            rating: biz.rating || 0,
+            ratingCount: biz.reviewCount || 0,
+            topTag: biz.verified ? "Verified" : null,
+            location: biz.address || "",
+            distance: biz.distance || 0,
+            popularity: biz.popularity || 0,
+            years: biz.established ? `${biz.established} Years in Business` : "",
+            tags: biz.categories || [],
+            phone: biz.phone || "",
+            img: biz.image || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
+            isVerified: biz.verified || false,
+            isTrust: biz.trusted || false,
+          }));
+          setAllListings(mappedListings);
+          setListings(mappedListings);
+        } else {
+          setListings([]);
+        }
+      } catch (error) {
+        console.error("Error fetching listings:", error);
+        setListings([]);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  const triggerLazySidebarFetch = () => {
+  const triggerLazySidebarFetch = async () => {
     if (relatedCategories.length === 0) {
-      setRelatedCategories(BACKEND_RELATED_CATEGORIES);
-      setKeywords(BACKEND_KEYWORDS);
-      setActiveAds(BACKEND_ADS);
+      try {
+        // Fetch related categories from API
+        const categoriesResponse = await apiService.categories.search(query);
+        if (categoriesResponse.data) {
+          const related = categoriesResponse.data.slice(0, 5).map(cat => ({
+            id: cat.id,
+            name: `${cat.name} in ${city}`,
+            count: `${cat.businessCount || 0} options`
+          }));
+          setRelatedCategories(related);
+        } else {
+          setRelatedCategories([]);
+        }
+
+        // Fetch trending keywords from API
+        const trendingResponse = await apiService.trending.getSearches();
+        if (trendingResponse.data) {
+          setKeywords(trendingResponse.data.slice(0, 8));
+        } else {
+          setKeywords([]);
+        }
+      } catch (error) {
+        console.error("Error fetching sidebar data:", error);
+        setRelatedCategories([]);
+        setKeywords([]);
+      }
     }
   };
 
@@ -262,7 +207,7 @@ export default function CategoryPage() {
     triggerLazyBannerFetch();
     triggerLazyListingFetch();
     triggerLazySidebarFetch();
-  }, [city, query, filteredData]);
+  }, [city, query]);
 
   const handleDismissAd = (adId) => {
     setDismissedAdIds((prev) => [...prev, adId]);
@@ -273,10 +218,15 @@ export default function CategoryPage() {
     setLeadForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = () => {
-    console.log("Requirements Sent:", leadForm);
-    alert("Thank you! Your requirements have been sent.");
-    setLeadForm({ name: "", mobile: "", location: "" });
+  const handleFormSubmit = async () => {
+    try {
+      await apiService.leads.create(leadForm);
+      alert("Thank you! Your requirements have been sent.");
+      setLeadForm({ name: "", mobile: "", location: "" });
+    } catch (error) {
+      console.error("Error submitting lead:", error);
+      alert("Failed to send requirements. Please try again.");
+    }
   };
 
   const processedListings = useMemo(() => {
@@ -388,7 +338,11 @@ export default function CategoryPage() {
             {/* Left Segment: Main Content Area */}
             <div className="category-main-scrollable">
               <LazyViewElement onVisible={triggerLazyListingFetch}>
-                {processedListings.length === 0 ? (
+                {loading ? (
+                  <div className="empty-results-fallback">
+                    <p>Loading listings...</p>
+                  </div>
+                ) : processedListings.length === 0 ? (
                   <div className="empty-results-fallback">
                     <p>No listings found matching the criteria.</p>
                   </div>

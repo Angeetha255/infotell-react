@@ -2,48 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { setQuery, setLocation } from "../../store/store";
 import { setLoginOpen } from "../../store/store";
+import { apiService } from "../../services/api";
 import "./Header.css";
 import { useDispatch } from "react-redux";
-
-const POPULAR_SEARCHES = [
-  { icon: "fa-magnifying-glass", text: "Software Companies" },
-  { icon: "fa-magnifying-glass", text: "Web Development Services" },
-  { icon: "fa-code", text: "Mobile App Developers" },
-  { icon: "fa-bullhorn", text: "Digital Marketing Agencies" },
-];
-
-const POPULAR_CITIES = [
-  "Chennai",
-  "Coimbatore",
-  "Madurai",
-  "Tiruchirappalli",
-  "Salem",
-  "Tiruppur",
-  "Erode",
-  "Tuticorin",
-  "Tirunelveli",
-  "Dindigul",
-  "Thanjavur",
-  "Ooty",
-  "Kodaikanal",
-  "Yercaud",
-  "Bangalore",
-  "Mumbai",
-  "Delhi",
-  "Hyderabad",
-  "Kolkata",
-  "Pune",
-  "Ahmedabad",
-  "Jaipur",
-  "Chandigarh",
-  "Lucknow",
-  "Kochi",
-  "Visakhapatnam",
-  "Mysore",
-  "Bhopal",
-  "Noida",
-  "Vijayawada",
-];
 
 export default function Header() {
   const dispatch = useDispatch();
@@ -52,15 +13,60 @@ export default function Header() {
   const [showDrop, setShowDrop] = useState(false);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const [showLocationView, setShowLocationView] = useState(false);
-  const [filtered, setFiltered] = useState(POPULAR_SEARCHES);
-  const [city, setCity] = useState(POPULAR_CITIES?.[0] || "");
+  const [popularSearches, setPopularSearches] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
 
   // Checks exclusively for mobile screen sizes (below 1200px)
   const isMobileSize = () => window.innerWidth < 1200;
+
+  /* Fetch cities and popular searches from API */
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoading(true);
+      try {
+        // Fetch cities from /districts endpoint
+        const citiesResponse = await apiService.cities.getAll();
+        console.log("Cities API response:", citiesResponse);
+        console.log("Cities data type:", typeof citiesResponse.data);
+        console.log("Cities data:", citiesResponse.data);
+
+        // Handle different response structures
+        const citiesArray = Array.isArray(citiesResponse.data)
+          ? citiesResponse.data
+          : (citiesResponse.data?.districts || citiesResponse.data?.data || []);
+
+        if (citiesArray.length > 0) {
+          const citiesData = citiesArray.map(c => c.name || c.districtName || c.district);
+          setCities(citiesData);
+          setCity(citiesData[0] || "");
+        } else {
+          setCities([]);
+          setCity("");
+        }
+
+        // Popular searches - will be empty until backend provides endpoint
+        setPopularSearches([]);
+        setFiltered([]);
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        setCities([]);
+        setCity("");
+        setPopularSearches([]);
+        setFiltered([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
 
   /* Sticky header controller */
   useEffect(() => {
@@ -101,7 +107,7 @@ export default function Header() {
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
-    const f = POPULAR_SEARCHES.filter((i) =>
+    const f = popularSearches.filter((i) =>
       i.text.toLowerCase().includes(val.toLowerCase()),
     );
     setFiltered(f);
@@ -130,7 +136,7 @@ export default function Header() {
       setIsMobileModalOpen(true);
       return;
     }
-    setFiltered(query ? filtered : POPULAR_SEARCHES);
+    setFiltered(query ? filtered : popularSearches);
     setShowDrop(true);
   };
 
@@ -170,12 +176,19 @@ export default function Header() {
                   onChange={(e) => setCity(e.target.value)}
                   className="location-box"
                   aria-label="Select City"
+                  disabled={loading}
                 >
-                  {POPULAR_CITIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
+                  {loading ? (
+                    <option>Loading cities...</option>
+                  ) : cities.length > 0 ? (
+                    cities.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No cities available</option>
+                  )}
                 </select>
 
                 <div className="search-input-box" id="searchBox">
@@ -344,20 +357,26 @@ export default function Header() {
             <div className="search-overlay-content location-selection-view animated fadeIn">
               <h3 className="trending-title">Select Local City Area</h3>
               <div className="trending-list static-cities-vertical-scroll">
-                {POPULAR_CITIES.map((c, idx) => (
-                  <div
-                    key={idx}
-                    className={`trending-item city-row-item ${city === c ? "active-city" : ""}`}
-                    onClick={() => handleCitySelectInOverlay(c)}
-                  >
-                    <div className="trending-icon-box">
-                      <i className="fa-solid fa-location-arrow"></i>
+                {loading ? (
+                  <div className="trending-item">Loading cities...</div>
+                ) : cities.length > 0 ? (
+                  cities.map((c, idx) => (
+                    <div
+                      key={idx}
+                      className={`trending-item city-row-item ${city === c ? "active-city" : ""}`}
+                      onClick={() => handleCitySelectInOverlay(c)}
+                    >
+                      <div className="trending-icon-box">
+                        <i className="fa-solid fa-location-arrow"></i>
+                      </div>
+                      <div className="trending-text-box">
+                        <span className="trending-name">{c}</span>
+                      </div>
                     </div>
-                    <div className="trending-text-box">
-                      <span className="trending-name">{c}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="trending-item">No cities available</div>
+                )}
               </div>
             </div>
           )}
