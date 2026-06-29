@@ -17,6 +17,8 @@ export default function CompanyPage() {
   const [activeTab, setActiveTab] = useState('Overview');
   const [companyData, setCompanyData] = useState(null);
   const [businessHours, setBusinessHours] = useState(null);
+  const [companyDescription, setCompanyDescription] = useState('');
+  const [galleryImages, setGalleryImages] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [businessesLoading, setBusinessesLoading] = useState(false);
@@ -112,10 +114,18 @@ export default function CompanyPage() {
               (b.id && String(b.id) === String(companyId))
             );
             
-            if (matchedBusiness && matchedBusiness.businessHours) {
-              setBusinessHours(matchedBusiness.businessHours);
-            } else if (matchedBusiness && matchedBusiness.hours) {
-              setBusinessHours(matchedBusiness.hours);
+            if (matchedBusiness) {
+              if (matchedBusiness.businessHours) {
+                setBusinessHours(matchedBusiness.businessHours);
+              } else if (matchedBusiness.hours) {
+                setBusinessHours(matchedBusiness.hours);
+              } else {
+                setBusinessHours(null);
+              }
+              // Fetch description from businesses API
+              if (matchedBusiness.description) {
+                setCompanyDescription(matchedBusiness.description);
+              }
             } else {
               setBusinessHours(null);
             }
@@ -144,6 +154,19 @@ export default function CompanyPage() {
               : productsArray;
             
             setProducts(filteredProducts);
+
+            // Extract gallery images from filtered products
+            const allGalleryImages = [];
+            filteredProducts.forEach(product => {
+              if (product.gallery && Array.isArray(product.gallery)) {
+                product.gallery.forEach(img => {
+                  if (img) {
+                    allGalleryImages.push(resolveImageUrl(img));
+                  }
+                });
+              }
+            });
+            setGalleryImages(allGalleryImages);
           }
         } catch (prodError) {
           console.error("Error fetching products:", prodError);
@@ -307,7 +330,12 @@ export default function CompanyPage() {
       id: p.id,
       name: p.productName || 'Product',
       price: displayPrice ? `₹${displayPrice}` : '',
-      images: images
+      images: images,
+      // Structured price data for new price layout
+      productMrp: p.productMrp,
+      discountPrice: p.discountPrice,
+      discountPercentage: p.discountPercentage,
+      priceFlag: p.displayPrice !== false
     };
   });
 
@@ -390,7 +418,7 @@ export default function CompanyPage() {
                 {/* VIEW 1: OVERVIEW COMPONENT BLOCK */}
                 {activeTab === 'Overview' && (
                   <div className="tab-pane-content animation-fade-in">
-                    <p className="tab-body-description">{companyData.description || "No description available."}</p>
+                    <p className="tab-body-description">{companyDescription || companyData.description || "No description available."}</p>
                   </div>
                 )}
 
@@ -398,10 +426,10 @@ export default function CompanyPage() {
                 {activeTab === 'Photos' && (
                   <div className="tab-pane-content animation-fade-in">
                     <div className="photos-thumbnail-bounded-matrix">
-                      {companyData.images && companyData.images.length > 0 ? (
-                        companyData.images.map((src, idx) => (
+                      {galleryImages.length > 0 ? (
+                        galleryImages.map((src, idx) => (
                           <div key={idx} className="strict-photo-box-card">
-                            <img src={src} alt={`Thumbnail Assets ${idx + 1}`} />
+                            <img src={src} alt={`Gallery Image ${idx + 1}`} />
                           </div>
                         ))
                       ) : (

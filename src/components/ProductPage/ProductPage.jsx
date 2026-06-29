@@ -133,7 +133,12 @@ export default function ProductPage() {
                 id: p.id,
                 name: p.productName || p.name || 'Product',
                 price: displayPrice ? `₹${displayPrice}` : '',
-                images: simImages
+                images: simImages,
+                // Structured price data for new price layout
+                productMrp: p.productMrp,
+                discountPrice: p.discountPrice,
+                discountPercentage: p.discountPercentage,
+                priceFlag: p.displayPrice !== false
               };
             });
           setSimilarProducts(similarList);
@@ -324,7 +329,19 @@ export default function ProductPage() {
             {/* Description Details Block (Right Column) */}
             <div className="col-md-6 pdp-v4-details-block">
               <h1 className="pdp-v4-product-title">{productEntity.name}</h1>
-              <div className="pdp-v4-product-price">{productEntity.price}</div>
+              <div className="pdp-v4-product-price">
+                {productData.displayPrice === false ? null : productData.discountPrice ? (
+                  <span className="price-with-discount">
+                    <span className="product-mrp-strikethrough">₹{productData.productMrp}</span>
+                    <span className="product-discount-price">₹{productData.discountPrice}</span>
+                    <span className="product-discount-percentage">({productData.discountPercentage}% OFF)</span>
+                  </span>
+                ) : productData.productMrp ? (
+                  <span className="product-mrp-only">₹{productData.productMrp}</span>
+                ) : (
+                  productEntity.price
+                )}
+              </div>
 
               <hr className="pdp-v4-divider" />
 

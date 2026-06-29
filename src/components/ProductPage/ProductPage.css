@@ -259,12 +259,40 @@
 .pdp-v4-product-price {
   font-size: 1.3rem;
   font-weight: 700;
-  
-  background: var(--gradient-text);
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #16a34a;
+  margin-bottom: 1rem;
+}
+
+.pdp-v4-product-price .price-with-discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pdp-v4-product-price .product-mrp-strikethrough {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.pdp-v4-product-price .product-discount-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.pdp-v4-product-price .product-discount-percentage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.pdp-v4-product-price .product-mrp-only {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #16a34a;
 }
 
 .pdp-v4-divider {
