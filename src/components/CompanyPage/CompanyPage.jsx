@@ -7,6 +7,8 @@ import ImageCardXFlow from '../ImageCardXFlow/ImageCardXFlow';
 import ShareButton from '../ShareButton/ShareButton';
 
 const TABS = ['Overview', 'Photos', 'Catalogue', 'Reviews'];
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
+const BACKEND_BASE_URL = 'http://localhost:5006';
 
 export default function CompanyPage() {
   const navigate = useNavigate();
@@ -19,20 +21,32 @@ export default function CompanyPage() {
   const [loading, setLoading] = useState(false);
   const [businessesLoading, setBusinessesLoading] = useState(false);
   const [businessesError, setBusinessesError] = useState(null);
+  const [products, setProducts] = useState([]);
 
   // Login & Review Form States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
+  // Resolve relative image path to full URL
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    return `${BACKEND_BASE_URL}/uploads/${imagePath}`;
+  };
+
   // Fetch company data on mount
   useEffect(() => {
     const fetchCompanyData = async () => {
       setLoading(true);
+      let resolvedCompanyId = null;
       try {
         // Check if company data is passed via navigation state
         if (location.state?.companyData) {
           setCompanyData(location.state.companyData);
+          resolvedCompanyId = location.state.companyData.id || id;
           
           // Fetch reviews for this company
           try {
@@ -56,6 +70,7 @@ export default function CompanyPage() {
           const response = await apiService.publicCompanies.getById(id);
           if (response.data) {
             setCompanyData(response.data);
+            resolvedCompanyId = response.data.id || id;
 
             // Fetch reviews for this company
             try {
@@ -111,6 +126,28 @@ export default function CompanyPage() {
           setBusinessHours(null);
         } finally {
           setBusinessesLoading(false);
+        }
+
+        // Fetch all products and filter by companyId
+        try {
+          const productsResponse = await apiService.products.getAll();
+          if (productsResponse.data) {
+            // The API returns { products: [...] } structure
+            const productsArray = Array.isArray(productsResponse.data)
+              ? productsResponse.data
+              : (productsResponse.data.products || productsResponse.data.data || []);
+            
+            // Filter products to only show those matching the current company
+            const companyIdNum = resolvedCompanyId ? Number(resolvedCompanyId) : null;
+            const filteredProducts = companyIdNum
+              ? productsArray.filter(p => Number(p.companyId) === companyIdNum)
+              : productsArray;
+            
+            setProducts(filteredProducts);
+          }
+        } catch (prodError) {
+          console.error("Error fetching products:", prodError);
+          setProducts([]);
         }
       } catch (error) {
         console.error("Error fetching company data:", error);
@@ -232,6 +269,47 @@ export default function CompanyPage() {
 
     return "Closed";
   };
+
+  // Map products from API to the format expected by ImageCardXFlow
+  const mappedProducts = products.map(p => {
+    // Resolve image URLs using the backend base URL
+    const resolveProductImages = (images) => {
+      if (images && Array.isArray(images) && images.length > 0) {
+        return images.map(img => resolveImageUrl(img));
+      }
+      return null;
+    };
+
+    const resolvedCoverImage = resolveImageUrl(p.coverImage);
+    const resolvedProductImages = resolveProductImages(p.productImages);
+
+    // Build images array: always include coverImage first, then add productImages
+    let images = [];
+    if (resolvedCoverImage) {
+      images.push(resolvedCoverImage);
+    }
+    if (resolvedProductImages && resolvedProductImages.length > 0) {
+      // Only add productImages that are not duplicates of coverImage
+      resolvedProductImages.forEach(img => {
+        if (!images.includes(img)) {
+          images.push(img);
+        }
+      });
+    }
+    if (images.length === 0) {
+      images = [PLACEHOLDER_IMAGE];
+    }
+
+    // Determine display price
+    const displayPrice = p.discountPrice || p.productMrp || p.price || '';
+
+    return {
+      id: p.id,
+      name: p.productName || 'Product',
+      price: displayPrice ? `₹${displayPrice}` : '',
+      images: images
+    };
+  });
 
   const rawAggregateScore = reviews.reduce((acc, curr) => acc + curr.rating, 0);
   const evaluatedAverageRating = reviews.length > 0 ? (rawAggregateScore / reviews.length).toFixed(1) : "0.0";
@@ -385,8 +463,8 @@ export default function CompanyPage() {
               </div>
             </div>
 
-            {/* PRODUCT LISTING CARD CAROUSEL (REPLACED GALLERY COVER LAYER) */}
-            <ImageCardXFlow cardTitle={"Product"} DATAS={companyData.products || []} onCardClick={handleProductNavigation} />
+            {/* PRODUCT LISTING CARD CAROUSEL - Using products from Products API filtered by companyId */}
+            <ImageCardXFlow cardTitle={"Product"} DATAS={mappedProducts} onCardClick={handleProductNavigation} />
 
             {/* ESTABLISHMENT DATA SEGMENT SECTION CARD */}
             <div className="profile-card">

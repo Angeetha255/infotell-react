@@ -1,14 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
 import ImageCardXFlow from "../ImageCardXFlow/ImageCardXFlow";
 import ShareButton from "../ShareButton/ShareButton";
 
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
+const BACKEND_BASE_URL = 'http://localhost:5006';
+
 export default function ProductPage() {
-  const { city, company, productId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  const city = searchParams.get('city') || 'Madurai';
+  const company = searchParams.get('company') || 'Company';
+  const productId = searchParams.get('product');
 
   const [productData, setProductData] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -29,6 +36,61 @@ export default function ProductPage() {
   const strokeDashoffset =
     circumference - (satisfactionScore / 100) * circumference;
 
+  // Resolve relative image path to full URL
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    return `${BACKEND_BASE_URL}/uploads/${imagePath}`;
+  };
+
+  // Build media array: always include coverImage first, then add productImages, fall back to placeholder
+  const buildMediaArray = (product) => {
+    const images = [];
+    const resolvedCoverImage = resolveImageUrl(product.coverImage);
+    if (resolvedCoverImage) {
+      images.push(resolvedCoverImage);
+    }
+    if (product.productImages && Array.isArray(product.productImages) && product.productImages.length > 0) {
+      product.productImages.forEach(img => {
+        const resolved = resolveImageUrl(img);
+        if (resolved && !images.includes(resolved)) {
+          images.push(resolved);
+        }
+      });
+    }
+    if (images.length === 0) {
+      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+        product.images.forEach(img => {
+          const resolved = resolveImageUrl(img);
+          if (resolved && !images.includes(resolved)) {
+            images.push(resolved);
+          }
+        });
+      } else if (product.image) {
+        const resolved = resolveImageUrl(product.image);
+        if (resolved) images.push(resolved);
+      }
+    }
+    if (images.length === 0) {
+      images.push(PLACEHOLDER_IMAGE);
+    }
+    return images;
+  };
+
+  // Scroll thumbnails left/right
+  const handleScrollThumbnails = (direction) => {
+    if (thumbnailScrollContainerRef.current) {
+      const scrollAmount = 120;
+      const currentScroll = thumbnailScrollContainerRef.current.scrollLeft;
+      thumbnailScrollContainerRef.current.scrollTo({
+        left: direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount,
+        behavior: "smooth"
+      });
+    }
+  };
+
   // Fetch product data on mount
   useEffect(() => {
     const fetchProductData = async () => {
@@ -42,15 +104,34 @@ export default function ProductPage() {
           // Fetch similar products
           const similarResponse = await apiService.products.getByCategory(productResponse.data.categoryId);
           if (similarResponse.data) {
-            const mappedSimilar = similarResponse.data
+            const similarArray = Array.isArray(similarResponse.data)
+              ? similarResponse.data
+              : (similarResponse.data.products || similarResponse.data.data || []);
+            
+            const mappedSimilar = similarArray
               .filter(p => p.id !== productId)
               .slice(0, 5)
-              .map(p => ({
-                id: p.id,
-                name: p.name,
-                price: p.price,
-                images: p.images || [p.image]
-              }));
+              .map(p => {
+                let simImages;
+                if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                  simImages = p.productImages.map(img => resolveImageUrl(img));
+                } else if (p.coverImage) {
+                  simImages = [resolveImageUrl(p.coverImage)];
+                } else if (p.images && p.images.length > 0) {
+                  simImages = p.images.map(img => resolveImageUrl(img));
+                } else if (p.image) {
+                  simImages = [resolveImageUrl(p.image)];
+                } else {
+                  simImages = [PLACEHOLDER_IMAGE];
+                }
+                const displayPrice = p.discountPrice || p.productMrp || p.price || '';
+                return {
+                  id: p.id,
+                  name: p.productName || p.name || 'Product',
+                  price: displayPrice ? `₹${displayPrice}` : '',
+                  images: simImages
+                };
+              });
             setSimilarProducts(mappedSimilar);
           }
 
@@ -103,20 +184,22 @@ export default function ProductPage() {
     return <div className="pdp-v4-root-wrapper"><div className="container"><p>Product not found.</p></div></div>;
   }
 
+  const displayPrice = productData.discountPrice || productData.productMrp || productData.price || '';
+
   const productEntity = {
-    name: productData.name,
-    price: productData.price,
+    name: productData.productName || productData.name || 'Product',
+    price: displayPrice ? `₹${displayPrice}` : '',
     description: productData.description,
     specs: productData.specs || [],
-    media: productData.images || [productData.image]
+    media: buildMediaArray(productData)
   };
 
   return (
     <div className="pdp-v4-root-wrapper">
       <div className="container pdp-v4-main-container">
         <div className="pdp-v4-breadcrumb-trail">
-          {city || "Madurai"} &gt; {company || "Gv Solutions"} &gt; Products
-          &gt;{" "}
+          {city || "Madurai"} {'>'} {company || "Gv Solutions"} {'>'} Products
+          {'>'}{" "}
           <span className="pdp-v4-breadcrumb-current">
             {productEntity.name}
           </span>
