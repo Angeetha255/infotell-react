@@ -19,6 +19,9 @@ export default function Header() {
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [companiesError, setCompaniesError] = useState(null);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
@@ -54,6 +57,9 @@ export default function Header() {
         // Popular searches - will be empty until backend provides endpoint
         setPopularSearches([]);
         setFiltered([]);
+
+        // Fetch all companies for search functionality
+        await fetchCompanies();
       } catch (error) {
         console.error("Error fetching initial data:", error);
         setCities([]);
@@ -67,6 +73,28 @@ export default function Header() {
 
     fetchInitialData();
   }, []);
+
+  /* Fetch all companies from Public Companies API */
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true);
+    setCompaniesError(null);
+    try {
+      const response = await apiService.publicCompanies.getAll();
+      console.log("Companies API response:", response);
+      
+      const companiesArray = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.companies || response.data?.data || []);
+      
+      setCompanies(companiesArray);
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+      setCompaniesError("Failed to load companies. Please try again.");
+      setCompanies([]);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
 
   /* Sticky header controller */
   useEffect(() => {
@@ -107,19 +135,53 @@ export default function Header() {
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
-    const f = popularSearches.filter((i) =>
-      i.text.toLowerCase().includes(val.toLowerCase()),
-    );
-    setFiltered(f);
-    setShowDrop(val.length > 0 ? f.length > 0 : true);
+    
+    // Filter companies by district (city) and businessName (query)
+    const filteredCompanies = companies.filter((company) => {
+      const districtMatch = company.district === city;
+      const nameMatch = company.businessName && 
+        company.businessName.toLowerCase().includes(val.toLowerCase());
+      return districtMatch && nameMatch;
+    });
+    
+    // Map to the format expected by the dropdown
+    const mappedFiltered = filteredCompanies.map((company) => ({
+      text: company.businessName,
+      icon: 'fa-building',
+      companyData: company
+    }));
+    
+    setFiltered(mappedFiltered);
+    setShowDrop(val.length > 0);
   };
 
-  const handleSelect = (text) => {
+  const handleSelect = (text, companyData = null) => {
     setShowDrop(false);
     setIsMobileModalOpen(false);
 
     if (city !== undefined && text !== undefined && text.trim() !== "") {
-      navigate(`/category?city=${city}&query=${text}`);
+      if (companyData) {
+        // Navigate to company page with company data
+        const companyId = companyData.id || companyData._id || 'details';
+        navigate(`/company/${companyId}`, { state: { companyData } });
+      } else {
+        const trimmedText = text.trim();
+        // Use the same filtering logic as the autocomplete dropdown
+        const matchingCompanies = companies.filter((company) => {
+          const districtMatch = company.district === city;
+          const nameMatch = company.businessName && 
+            company.businessName.toLowerCase().includes(trimmedText.toLowerCase());
+          return districtMatch && nameMatch;
+        });
+        
+        if (matchingCompanies.length > 0) {
+          const company = matchingCompanies[0];
+          const companyId = company.id || company._id || 'details';
+          navigate(`/company/${companyId}`, { state: { companyData: company } });
+        } else {
+          navigate(`/category?city=${city}&query=${trimmedText}`);
+        }
+      }
     } else {
       console.log("Condition failed: city or query is missing");
     }
@@ -142,7 +204,25 @@ export default function Header() {
 
   const onSearchClick = (e) => {
     if (city !== undefined && query !== undefined && query.trim() !== "") {
-      navigate(`/category?city=${city}&query=${query}`);
+      const trimmedQuery = query.trim();
+      
+      // Use the same filtering logic as the autocomplete dropdown (handleInput)
+      const matchingCompanies = companies.filter((company) => {
+        const districtMatch = company.district === city;
+        const nameMatch = company.businessName && 
+          company.businessName.toLowerCase().includes(trimmedQuery.toLowerCase());
+        return districtMatch && nameMatch;
+      });
+      
+      if (matchingCompanies.length > 0) {
+        // Navigate to the first matching company's detail page (same as handleSelect)
+        const company = matchingCompanies[0];
+        const companyId = company.id || company._id || 'details';
+        navigate(`/company/${companyId}`, { state: { companyData: company } });
+      } else {
+        // Fallback to category search page when no exact match found
+        navigate(`/category?city=${city}&query=${trimmedQuery}`);
+      }
     } else {
       console.log("Condition failed: city or query is missing");
     }
@@ -217,17 +297,27 @@ export default function Header() {
               {/* Desktop Dropdown Box Panel */}
               {showDrop && (
                 <div className="search-dropdown" id="searchDropdown">
-                  <div className="search-dropdown-label">Popular Searches</div>
-                  {filtered.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="search-item"
-                      onClick={() => handleSelect(item.text)}
-                    >
-                      <i className={`fa-solid ${item.icon}`}></i>
-                      <span>{item.text}</span>
-                    </div>
-                  ))}
+                  <div className="search-dropdown-label">
+                    {query ? "Matching Companies" : "Popular Searches"}
+                  </div>
+                  {companiesLoading ? (
+                    <div className="search-item">Loading companies...</div>
+                  ) : companiesError ? (
+                    <div className="search-item">{companiesError}</div>
+                  ) : filtered.length === 0 && query ? (
+                    <div className="search-item">No companies found</div>
+                  ) : (
+                    filtered.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="search-item"
+                        onClick={() => handleSelect(item.text, item.companyData)}
+                      >
+                        <i className={`fa-solid ${item.icon}`}></i>
+                        <span>{item.text}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -333,23 +423,31 @@ export default function Header() {
 
               <div className="search-overlay-content">
                 <h3 className="trending-title">
-                  {query ? "Matching Results" : "Popular Searches"}
+                  {query ? "Matching Companies" : "Popular Searches"}
                 </h3>
                 <div className="trending-list">
-                  {filtered.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="trending-item"
-                      onClick={() => handleSelect(item.text)}
-                    >
-                      <div className="trending-icon-box">
-                        <i className={`fa-solid ${item.icon}`}></i>
+                  {companiesLoading ? (
+                    <div className="trending-item">Loading companies...</div>
+                  ) : companiesError ? (
+                    <div className="trending-item">{companiesError}</div>
+                  ) : filtered.length === 0 && query ? (
+                    <div className="trending-item">No companies found</div>
+                  ) : (
+                    filtered.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="trending-item"
+                        onClick={() => handleSelect(item.text, item.companyData)}
+                      >
+                        <div className="trending-icon-box">
+                          <i className={`fa-solid ${item.icon}`}></i>
+                        </div>
+                        <div className="trending-text-box">
+                          <span className="trending-name">{item.text}</span>
+                        </div>
                       </div>
-                      <div className="trending-text-box">
-                        <span className="trending-name">{item.text}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </>

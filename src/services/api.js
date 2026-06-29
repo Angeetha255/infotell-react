@@ -80,6 +80,18 @@ export const apiService = {
     delete: (id) => api.delete(`/companies/${id}`),
   },
 
+  // Public Companies (for search functionality)
+  publicCompanies: {
+    getAll: () => api.get('/companies'),
+    getById: (id) => api.get(`/companies/${id}`),
+  },
+
+  // Public Businesses (for business-specific details like hours)
+  publicBusinesses: {
+    getAll: () => api.get('/businesses'),
+    getById: (id) => api.get(`/businesses/${id}`),
+  },
+
   // Products
   products: {
     getAll: (params = {}) => api.get('/products', { params }),

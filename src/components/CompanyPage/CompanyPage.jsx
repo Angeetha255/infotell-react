@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import './CompanyPage.css';
 import ReviewRating from '../ReviewRating/ReviewRating';
@@ -11,10 +11,14 @@ const TABS = ['Overview', 'Photos', 'Catalogue', 'Reviews'];
 export default function CompanyPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('Overview');
   const [companyData, setCompanyData] = useState(null);
+  const [businessHours, setBusinessHours] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [businessesLoading, setBusinessesLoading] = useState(false);
+  const [businessesError, setBusinessesError] = useState(null);
 
   // Login & Review Form States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,22 +30,87 @@ export default function CompanyPage() {
     const fetchCompanyData = async () => {
       setLoading(true);
       try {
-        const response = await apiService.businesses.getById(id);
-        if (response.data) {
-          setCompanyData(response.data);
-
+        // Check if company data is passed via navigation state
+        if (location.state?.companyData) {
+          setCompanyData(location.state.companyData);
+          
           // Fetch reviews for this company
-          const reviewsResponse = await apiService.reviews.getByBusiness(id);
-          if (reviewsResponse.data) {
-            const mappedReviews = reviewsResponse.data.map(r => ({
-              id: r.id,
-              name: r.userName,
-              pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
-              rating: r.rating,
-              comment: r.comment
-            }));
-            setReviews(mappedReviews);
+          try {
+            const reviewsResponse = await apiService.reviews.getByBusiness(id);
+            if (reviewsResponse.data) {
+              const mappedReviews = reviewsResponse.data.map(r => ({
+                id: r.id,
+                name: r.userName,
+                pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+                rating: r.rating,
+                comment: r.comment
+              }));
+              setReviews(mappedReviews);
+            }
+          } catch (reviewError) {
+            // Silently handle reviews fetch errors - reviews are optional
+            setReviews([]);
           }
+        } else {
+          // Fetch from Public Companies API using ID
+          const response = await apiService.publicCompanies.getById(id);
+          if (response.data) {
+            setCompanyData(response.data);
+
+            // Fetch reviews for this company
+            try {
+              const reviewsResponse = await apiService.reviews.getByBusiness(id);
+              if (reviewsResponse.data) {
+                const mappedReviews = reviewsResponse.data.map(r => ({
+                  id: r.id,
+                  name: r.userName,
+                  pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+                  rating: r.rating,
+                  comment: r.comment
+                }));
+                setReviews(mappedReviews);
+              }
+            } catch (reviewError) {
+              // Silently handle reviews fetch errors - reviews are optional
+              setReviews([]);
+            }
+          }
+        }
+
+        // Fetch businesses data to get business hours
+        setBusinessesLoading(true);
+        setBusinessesError(null);
+        try {
+          const businessesResponse = await apiService.publicBusinesses.getAll();
+          if (businessesResponse.data) {
+            const businessesArray = Array.isArray(businessesResponse.data)
+              ? businessesResponse.data
+              : (businessesResponse.data.data || businessesResponse.data.businesses || []);
+            
+            // Determine the company identifier to match
+            const companyId = companyData?.id || location.state?.companyData?.id || id;
+            
+            // Try to match by companyId first, then businessId, then id
+            const matchedBusiness = businessesArray.find(b => 
+              (b.companyId && String(b.companyId) === String(companyId)) ||
+              (b.businessId && String(b.businessId) === String(companyId)) ||
+              (b.id && String(b.id) === String(companyId))
+            );
+            
+            if (matchedBusiness && matchedBusiness.businessHours) {
+              setBusinessHours(matchedBusiness.businessHours);
+            } else if (matchedBusiness && matchedBusiness.hours) {
+              setBusinessHours(matchedBusiness.hours);
+            } else {
+              setBusinessHours(null);
+            }
+          }
+        } catch (bizError) {
+          console.error("Error fetching businesses data:", bizError);
+          setBusinessesError("Failed to load business hours");
+          setBusinessHours(null);
+        } finally {
+          setBusinessesLoading(false);
         }
       } catch (error) {
         console.error("Error fetching company data:", error);
@@ -50,10 +119,10 @@ export default function CompanyPage() {
       }
     };
 
-    if (id) {
+    if (id || location.state?.companyData) {
       fetchCompanyData();
     }
-  }, [id]);
+  }, [id, location.state]);
 
   const [newReviewName, setNewReviewName] = useState('');
   const [newReviewComment, setNewReviewComment] = useState('');
@@ -114,6 +183,56 @@ export default function CompanyPage() {
     navigate(`/product?city=${companyData?.city || 'Madurai'}&company=${companyData?.name || 'Company'}&product=${productId}`);
   };
 
+  // Helper function to determine open status from businessHours
+  const getOpenStatus = (hoursData) => {
+    if (!hoursData || typeof hoursData !== 'object') {
+      return "Business hours not available";
+    }
+
+    const now = new Date();
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDayName = daysOfWeek[now.getDay()]; // e.g., "monday"
+    
+    // Capitalize first letter for matching API format: "Monday", "Tuesday", etc.
+    const apiDayKey = currentDayName.charAt(0).toUpperCase() + currentDayName.slice(1);
+
+    // Try to match the current day in the businessHours object
+    const todayHours = hoursData[apiDayKey] || hoursData[currentDayName] || hoursData[currentDayName.toLowerCase()];
+
+    if (!todayHours || typeof todayHours !== 'object') {
+      return "Closed";
+    }
+
+    // Check if it's a working day
+    if (todayHours.isWorkingDay === false) {
+      return "Closed";
+    }
+
+    const openTime = todayHours.openTime || todayHours.open || todayHours.start;
+    const closeTime = todayHours.closeTime || todayHours.close || todayHours.end;
+
+    if (!openTime || !closeTime) {
+      return "Closed";
+    }
+
+    const [openHour, openMin] = openTime.split(':').map(Number);
+    const [closeHour, closeMin] = closeTime.split(':').map(Number);
+
+    if (isNaN(openHour) || isNaN(openMin) || isNaN(closeHour) || isNaN(closeMin)) {
+      return "Closed";
+    }
+
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
+    const openMinutes = openHour * 60 + openMin;
+    const closeMinutes = closeHour * 60 + closeMin;
+
+    if (currentTime >= openMinutes && currentTime < closeMinutes) {
+      return "Open Now";
+    }
+
+    return "Closed";
+  };
+
   const rawAggregateScore = reviews.reduce((acc, curr) => acc + curr.rating, 0);
   const evaluatedAverageRating = reviews.length > 0 ? (rawAggregateScore / reviews.length).toFixed(1) : "0.0";
 
@@ -138,7 +257,7 @@ export default function CompanyPage() {
               <div className="profile-header">
                 <div>
                   <h1 className="profile-name">
-                    {companyData.name}
+                    {companyData.businessName || companyData.name}
                     {companyData.verified && <i className="fas fa-check-circle verified-badge-icon"></i>}
                   </h1>
                   <div className="profile-rating-row">
@@ -146,8 +265,8 @@ export default function CompanyPage() {
                     <span className="profile-rating-text">{reviews.length} Ratings Verified | Claimed Account</span>
                   </div>
                   <div className="profile-location">
-                    <i className="fas fa-map-marker-alt"></i> {companyData.address || "Address not available"} &nbsp;•&nbsp;
-                    <span className="open-status">Open until 8:00 pm</span>
+                    <i className="fas fa-map-marker-alt"></i> {companyData.area && companyData.district && companyData.state ? `${companyData.area}, ${companyData.district}, ${companyData.state}` : (companyData.address || "Address not available")} &nbsp;•&nbsp;
+                    <span className="open-status">{getOpenStatus(businessHours)}</span>
                   </div>
                 </div>
                 <button className="btn-wishlist" aria-label="Bookmark Workspace">
@@ -156,8 +275,8 @@ export default function CompanyPage() {
               </div>
 
               <div className="company-actions">
-                <a href={`tel:${companyData.phone || ''}`} className="btn-company-call">
-                  <i className="fas fa-phone"></i> {companyData.phone || "Phone not available"}
+                <a href={`tel:${companyData.mobileNumber || companyData.phone || ''}`} className="btn-company-call">
+                  <i className="fas fa-phone"></i> {companyData.mobileNumber || companyData.phone || "Phone not available"}
                 </a>
                 <button className="btn-enquire">
                   Enquire Now
@@ -167,8 +286,8 @@ export default function CompanyPage() {
                 </button>
                 <button className="btn-share">
                   <ShareButton
-                    title={companyData.name}
-                    text={`Check out this company: ${companyData.name}!`}
+                    title={companyData.businessName || companyData.name}
+                    text={`Check out this company: ${companyData.businessName || companyData.name}!`}
                     url={window.location.href}
                   />
                 </button>
@@ -302,36 +421,122 @@ export default function CompanyPage() {
                 <h4 className="company-sidebar-title">Business Information</h4>
 
                 <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-map-marker-alt sidebar-info-icon"></i></div>
+                  <div className="sidebar-info-icon-container"><i className="fas fa-building sidebar-info-icon"></i></div>
                   <div>
-                    <div className="sidebar-info-label">Address</div>
-                    <div className="sidebar-info-value">{companyData.address || "Address not available"}</div>
+                    <div className="sidebar-info-label">Business Name</div>
+                    <div className="sidebar-info-value">{companyData.businessName || companyData.name || "N/A"}</div>
                   </div>
                 </div>
 
                 <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-clock sidebar-info-icon"></i></div>
+                  <div className="sidebar-info-icon-container"><i className="fas fa-user sidebar-info-icon"></i></div>
                   <div>
-                    <div className="sidebar-info-label">Working Hours</div>
-                    <div className="sidebar-info-value">{companyData.hours || "Mon – Sat: 9:00 AM – 8:00 PM"}</div>
+                    <div className="sidebar-info-label">Owner Name</div>
+                    <div className="sidebar-info-value">{companyData.ownerName || "N/A"}</div>
                   </div>
                 </div>
 
                 <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-briefcase sidebar-info-icon"></i></div>
+                  <div className="sidebar-info-icon-container"><i className="fas fa-envelope sidebar-info-icon"></i></div>
                   <div>
-                    <div className="sidebar-info-label">Specialisations</div>
-                    <div className="sidebar-info-value">{companyData.specialisations || companyData.category || "N/A"}</div>
+                    <div className="sidebar-info-label">Email</div>
+                    <div className="sidebar-info-value">{companyData.email || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-phone sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Mobile Number</div>
+                    <div className="sidebar-info-value">{companyData.mobileNumber || companyData.phone || "N/A"}</div>
                   </div>
                 </div>
 
                 <div className="sidebar-info-row">
                   <div className="sidebar-info-icon-container"><i className="fas fa-calendar-alt sidebar-info-icon"></i></div>
                   <div>
-                    <div className="sidebar-info-label">Established</div>
-                    <div className="sidebar-info-value">{companyData.established || "N/A"}</div>
+                    <div className="sidebar-info-label">Year of Establishment</div>
+                    <div className="sidebar-info-value">{companyData.yearOfEstablishment || companyData.established || "N/A"}</div>
                   </div>
                 </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-file-invoice sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">GST Number</div>
+                    <div className="sidebar-info-value">{companyData.gstNumber || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-chart-line sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Yearly Turnover</div>
+                    <div className="sidebar-info-value">{companyData.yearlyTurnover || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-users sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Number of Employees</div>
+                    <div className="sidebar-info-value">{companyData.numberOfEmployees || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-globe sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Country</div>
+                    <div className="sidebar-info-value">{companyData.country || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-map sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">State</div>
+                    <div className="sidebar-info-value">{companyData.state || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-map-marker-alt sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">District</div>
+                    <div className="sidebar-info-value">{companyData.district || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-location-dot sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Area</div>
+                    <div className="sidebar-info-value">{companyData.area || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-mailbox sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Pincode</div>
+                    <div className="sidebar-info-value">{companyData.pincode || "N/A"}</div>
+                  </div>
+                </div>
+
+                {companyData.mapLink && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-directions sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Map Link</div>
+                      <div className="sidebar-info-value">
+                        <a href={companyData.mapLink} target="_blank" rel="noopener noreferrer" className="map-link">
+                          View on Map
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Box Segment 2: Relevant Categories Layout */}

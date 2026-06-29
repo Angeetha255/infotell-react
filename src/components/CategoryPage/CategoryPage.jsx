@@ -111,6 +111,9 @@ export default function CategoryPage() {
   const [activeAds, setActiveAds] = useState([]);
   const [dismissedAdIds, setDismissedAdIds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [bannersFetched, setBannersFetched] = useState(false);
+  const [listingsFetched, setListingsFetched] = useState(false);
+  const [sidebarFetched, setSidebarFetched] = useState(false);
 
   const [sortBy, setSortBy] = useState("relevance");
   const [filterVerified, setFilterVerified] = useState(true);
@@ -121,7 +124,8 @@ export default function CategoryPage() {
   const [leadForm, setLeadForm] = useState({ name: "", mobile: "", location: "" });
 
   const triggerLazyBannerFetch = async () => {
-    if (banners.length === 0) {
+    if (banners.length === 0 && !bannersFetched) {
+      setBannersFetched(true);
       try {
         const response = await apiService.banners.getByCategory(query);
         if (response.data) {
@@ -130,14 +134,19 @@ export default function CategoryPage() {
           setBanners([]);
         }
       } catch (error) {
-        console.error("Error fetching banners:", error);
+        // Silently handle banner fetch errors - banners are optional
+        // Don't log 404 errors to console as endpoint may not exist
+        if (error.response?.status !== 404) {
+          console.error('Banner fetch error:', error);
+        }
         setBanners([]);
       }
     }
   };
 
   const triggerLazyListingFetch = async () => {
-    if (allListings.length === 0) {
+    if (allListings.length === 0 && !listingsFetched) {
+      setListingsFetched(true);
       try {
         setLoading(true);
         const response = await apiService.businesses.search(query, { city });
@@ -164,7 +173,11 @@ export default function CategoryPage() {
           setListings([]);
         }
       } catch (error) {
-        console.error("Error fetching listings:", error);
+        // Silently handle listing fetch errors
+        // Don't log 404 errors to console as search may return no results
+        if (error.response?.status !== 404) {
+          console.error('Listing fetch error:', error);
+        }
         setListings([]);
       } finally {
         setLoading(false);
@@ -173,7 +186,8 @@ export default function CategoryPage() {
   };
 
   const triggerLazySidebarFetch = async () => {
-    if (relatedCategories.length === 0) {
+    if (relatedCategories.length === 0 && !sidebarFetched) {
+      setSidebarFetched(true);
       try {
         // Fetch related categories from API
         const categoriesResponse = await apiService.categories.search(query);
@@ -196,7 +210,11 @@ export default function CategoryPage() {
           setKeywords([]);
         }
       } catch (error) {
-        console.error("Error fetching sidebar data:", error);
+        // Silently handle sidebar fetch errors
+        // Don't log 404 errors to console as search may return no results
+        if (error.response?.status !== 404) {
+          console.error('Sidebar fetch error:', error);
+        }
         setRelatedCategories([]);
         setKeywords([]);
       }
@@ -204,6 +222,10 @@ export default function CategoryPage() {
   };
 
   useEffect(() => {
+    // Reset fetch flags when city or query changes
+    setBannersFetched(false);
+    setListingsFetched(false);
+    setSidebarFetched(false);
     triggerLazyBannerFetch();
     triggerLazyListingFetch();
     triggerLazySidebarFetch();
