@@ -127,11 +127,6 @@ export default function ProductPage() {
         if (foundProduct) {
           setProductData(foundProduct);
 
-          // Update breadcrumb with product-level data (category from product's productCategory)
-          if (foundProduct.productCategory) {
-            setBreadcrumbCategory(foundProduct.productCategory);
-          }
-
           // Fetch similar products based on same productCategory or companyId
           const similarList = allProductsList
             .filter(p => String(p.id) !== String(productId))
@@ -182,9 +177,11 @@ export default function ProductPage() {
                 const businessName = businessData.businessName || businessData.name || breadcrumbCompanyName;
                 setBreadcrumbCompanyName(businessName);
 
-                // Store business-level info as fallback
+                // Store full business-level info as fallback
                 setCompanyInfo({
+                  ...businessData,
                   id: actualCompanyId || foundProduct.companyId,
+                  businessName: businessName,
                   name: businessName,
                   address: [businessData.area, businessData.district, businessData.state]
                     .filter(Boolean)
@@ -197,6 +194,11 @@ export default function ProductPage() {
                 // Update breadcrumb with business data if available
                 if (businessData.district || businessData.city || businessData.area) {
                   setBreadcrumbCity(businessData.district || businessData.city || businessData.area);
+                }
+
+                // Update breadcrumb category from business data (Businesses API)
+                if (businessData.category || businessData.categoryName) {
+                  setBreadcrumbCategory(businessData.category || businessData.categoryName);
                 }
 
                 // Step 2: If we have an actual companyId, fetch the company for full address details
@@ -212,7 +214,9 @@ export default function ProductPage() {
                         .join(', ') || companyData.address || businessData.address || "Address not available";
                       
                       setCompanyInfo({
+                        ...companyData,
                         id: actualCompanyId,
+                        businessName: resolvedName,
                         name: resolvedName,
                         address: resolvedAddress,
                         phone: companyData.mobileNumber || companyData.phone || businessData.phone || '',
@@ -226,6 +230,11 @@ export default function ProductPage() {
                       
                       const resolvedCity = companyData.district || companyData.city || companyData.area || breadcrumbCity;
                       setBreadcrumbCity(resolvedCity);
+
+                      // Update breadcrumb category from company data if business data didn't have it
+                      if (!breadcrumbCategory && (companyData.category || companyData.categoryName)) {
+                        setBreadcrumbCategory(companyData.category || companyData.categoryName);
+                      }
                     }
                   } catch (companyErr) {
                     // Company API failed, we already have business data as fallback
@@ -294,8 +303,8 @@ export default function ProductPage() {
     });
   };
 
-  const handleBreadcrumbClick = (path) => {
-    navigate(path);
+  const handleBreadcrumbClick = (path, state = {}) => {
+    navigate(path, { state });
   };
 
   if (loading) {
@@ -351,7 +360,10 @@ export default function ProductPage() {
           {' > '}
           <span 
             className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(breadcrumbCity)}/${encodeURIComponent(breadcrumbCategory)}`)}
+            onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(breadcrumbCity)}/${encodeURIComponent(breadcrumbCategory)}`, { 
+              city: breadcrumbCity,
+              category: breadcrumbCategory
+            })}
           >
             {breadcrumbCity}
           </span>
@@ -359,7 +371,9 @@ export default function ProductPage() {
           {breadcrumbCompanyId ? (
             <span 
               className="pdp-v4-breadcrumb-item"
-              onClick={() => handleBreadcrumbClick(`/company/${breadcrumbCompanyId}`)}
+              onClick={() => handleBreadcrumbClick(`/company/${breadcrumbCompanyId}`, { 
+                companyData: companyInfo
+              })}
             >
               {breadcrumbCompanyName}
             </span>
