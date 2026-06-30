@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PopularTrending from '../PopularTrending/PopularTrending';
 import FloatingDust from '../Effects/Canvas/FloatingDust';
 import { apiService } from '../../services/api';
 import './HomePage.css';
+
+/* ── Helper: get currently selected city from Header dropdown ── */
+function getSelectedCity() {
+  const selectEl = document.querySelector('.location-box');
+  if (selectEl && selectEl.value) {
+    return selectEl.value;
+  }
+  return 'Madurai'; // fallback to first city
+}
 
 /* ── Components ── */
 function HeroCarousel({ slides }) {
@@ -36,6 +46,7 @@ function HeroCarousel({ slides }) {
 
 /* ── Main Export ── */
 export default function HomePage() {
+  const navigate = useNavigate();
   const [carouselSlides, setCarouselSlides] = useState([]);
   const [heroCategories, setHeroCategories] = useState([]);
   const [dialCategories, setDialCategories] = useState([]);
@@ -115,6 +126,12 @@ export default function HomePage() {
     fetchHomePageData();
   }, []);
 
+  /* ── Category click handler: navigate to CategoryPage with category name ── */
+  const handleCategoryClick = (categoryLabel) => {
+    const city = getSelectedCity();
+    navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(categoryLabel)}`);
+  };
+
   return (
     <div className="home-page">
       {/* Cosmic Effects */}
@@ -130,7 +147,12 @@ export default function HomePage() {
                 <p>Loading featured categories...</p>
               ) : heroCategories.length > 0 ? (
                 heroCategories.map((cat) => (
-                  <div key={cat.label} className={`hero-cat-card ${cat.cls}`}>
+                  <div
+                    key={cat.label}
+                    className={`hero-cat-card ${cat.cls}`}
+                    onClick={() => handleCategoryClick(cat.label)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <img src={cat.src} alt={cat.label} />
                     <p className="hero-cat-label">{cat.label}</p>
                   </div>
@@ -155,7 +177,8 @@ export default function HomePage() {
                 <div
                   key={cat.label}
                   className="category-box"
-                  style={{ animationDelay: `${i * 0.03}s` }}
+                  style={{ animationDelay: `${i * 0.03}s`, cursor: 'pointer' }}
+                  onClick={() => handleCategoryClick(cat.label)}
                 >
                   <img src={cat.src} alt={cat.label} />
                   <p>{cat.label}</p>
@@ -183,7 +206,12 @@ export default function HomePage() {
                   </div>
                   <div className="items-slider-container">
                     {sec.items.map((item) => (
-                      <div key={item.label} className="item-card">
+                      <div
+                        key={item.label}
+                        className="item-card"
+                        onClick={() => handleCategoryClick(item.label)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <img src={item.src} alt={item.label} />
                         <p>{item.label}</p>
                       </div>

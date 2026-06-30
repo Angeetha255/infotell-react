@@ -68,9 +68,15 @@ export const apiService = {
     search: (query) => api.get(`/categories/search?q=${query}`),
   },
 
-  // Businesses/Companies
+  // Businesses (Public endpoint - for business-specific details, hours, categories)
   businesses: {
-    getAll: (params = {}) => api.get('/companies', { params }),
+    getAll: () => api.get('/businesses'),
+    getById: (id) => api.get(`/businesses/${id}`),
+  },
+
+  // Public Companies (for company details and search functionality)
+  publicCompanies: {
+    getAll: () => api.get('/companies'),
     getById: (id) => api.get(`/companies/${id}`),
     getByCategory: (categoryId, params = {}) => api.get(`/companies/category/${categoryId}`, { params }),
     getByCity: (cityId, params = {}) => api.get(`/companies/city/${cityId}`, { params }),
@@ -78,12 +84,6 @@ export const apiService = {
     create: (data) => api.post('/companies', data),
     update: (id, data) => api.put(`/companies/${id}`, data),
     delete: (id) => api.delete(`/companies/${id}`),
-  },
-
-  // Public Companies (for search functionality)
-  publicCompanies: {
-    getAll: () => api.get('/companies'),
-    getById: (id) => api.get(`/companies/${id}`),
   },
 
   // Public Businesses (for business-specific details like hours)

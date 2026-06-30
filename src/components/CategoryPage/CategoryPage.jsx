@@ -144,37 +144,93 @@ export default function CategoryPage() {
     }
   };
 
+  /* ── Two-step API flow for category-based company listing ──
+   *  1. Call Businesses API → find businesses whose `category` matches the query
+   *  2. Collect their `companyId` values
+   *  3. Call Companies API → get company details for those IDs
+   *  4. Display only those matching companies
+   */
   const triggerLazyListingFetch = async () => {
     if (allListings.length === 0 && !listingsFetched) {
       setListingsFetched(true);
       try {
         setLoading(true);
-        const response = await apiService.businesses.search(query, { city });
-        if (response.data) {
-          const mappedListings = response.data.map(biz => ({
-            id: biz.id,
-            name: biz.name,
-            rating: biz.rating || 0,
-            ratingCount: biz.reviewCount || 0,
-            topTag: biz.verified ? "Verified" : null,
-            location: biz.address || "",
-            distance: biz.distance || 0,
-            popularity: biz.popularity || 0,
-            years: biz.established ? `${biz.established} Years in Business` : "",
-            tags: biz.categories || [],
-            phone: biz.phone || "",
-            img: biz.image || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
-            isVerified: biz.verified || false,
-            isTrust: biz.trusted || false,
-          }));
-          setAllListings(mappedListings);
-          setListings(mappedListings);
-        } else {
+
+        // Step 1: Fetch all businesses from Businesses API
+        const businessesResponse = await apiService.businesses.getAll();
+        const businessesArray = Array.isArray(businessesResponse.data)
+          ? businessesResponse.data
+          : (businessesResponse.data?.data || businessesResponse.data?.businesses || []);
+
+        // Step 2: Filter businesses whose `category` matches the query (case-insensitive, trimmed)
+        const normalizedQuery = query.trim().toLowerCase();
+        const matchedBusinesses = businessesArray.filter(biz => {
+          const bizCategory = (biz.category || biz.categoryName || '').trim().toLowerCase();
+          return bizCategory === normalizedQuery;
+        });
+
+        // Collect unique companyId values from matched businesses
+        const matchedCompanyIds = [...new Set(
+          matchedBusinesses
+            .map(biz => biz.companyId)
+            .filter(id => id != null)
+        )];
+
+        if (matchedCompanyIds.length === 0) {
+          setAllListings([]);
           setListings([]);
+          setLoading(false);
+          return;
         }
+
+        // Step 3: Fetch all companies from Companies API
+        const companiesResponse = await apiService.publicCompanies.getAll();
+        const companiesArray = Array.isArray(companiesResponse.data)
+          ? companiesResponse.data
+          : (companiesResponse.data?.companies || companiesResponse.data?.data || []);
+
+        // Step 4: Filter companies whose `id` is in the matchedCompanyIds list
+        // AND whose `district` matches the selected city (case-insensitive, trimmed)
+        const normalizedCity = city.trim().toLowerCase();
+        const matchedCompanies = companiesArray.filter(company => {
+          // Must be in the matched company IDs from businesses
+          const idMatch =
+            matchedCompanyIds.includes(company.id) ||
+            matchedCompanyIds.includes(company._id) ||
+            matchedCompanyIds.includes(String(company.id)) ||
+            matchedCompanyIds.includes(String(company._id));
+
+          // Must match the selected city by district
+          const companyDistrict = (company.district || company.city || company.area || '').trim().toLowerCase();
+          const cityMatch = companyDistrict === normalizedCity;
+
+          return idMatch && cityMatch;
+        });
+
+        // Map to listing format
+        const mappedListings = matchedCompanies.map(company => ({
+          id: company.id,
+          name: company.businessName || company.name,
+          rating: company.rating || 0,
+          ratingCount: company.reviewCount || 0,
+          topTag: company.verified ? "Verified" : null,
+          location: company.address || company.area || "",
+          distance: company.distance || 0,
+          popularity: company.popularity || 0,
+          years: company.established ? `${company.established} Years in Business` : "",
+          tags: company.categories || [],
+          phone: company.mobileNumber || company.phone || "",
+          img: company.image || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
+          isVerified: company.verified || false,
+          isTrust: company.trusted || false,
+          // Store full company data for navigation
+          companyData: company,
+        }));
+
+        setAllListings(mappedListings);
+        setListings(mappedListings);
       } catch (error) {
         // Silently handle listing fetch errors
-        // Don't log 404 errors to console as search may return no results
         if (error.response?.status !== 404) {
           console.error('Listing fetch error:', error);
         }
@@ -211,7 +267,6 @@ export default function CategoryPage() {
         }
       } catch (error) {
         // Silently handle sidebar fetch errors
-        // Don't log 404 errors to console as search may return no results
         if (error.response?.status !== 404) {
           console.error('Sidebar fetch error:', error);
         }
@@ -222,10 +277,16 @@ export default function CategoryPage() {
   };
 
   useEffect(() => {
-    // Reset fetch flags when city or query changes
+    // Reset fetch flags AND data when city or query changes
     setBannersFetched(false);
     setListingsFetched(false);
     setSidebarFetched(false);
+    // Clear existing data to force re-fetch (the lazy fetchers check for empty arrays)
+    setBanners([]);
+    setAllListings([]);
+    setListings([]);
+    setRelatedCategories([]);
+    setKeywords([]);
     triggerLazyBannerFetch();
     triggerLazyListingFetch();
     triggerLazySidebarFetch();
@@ -253,6 +314,12 @@ export default function CategoryPage() {
 
   const handleBreadcrumbClick = (path) => {
     navigate(path);
+  };
+
+  /* ── Company card click: navigate to Company Details page ── */
+  const handleCompanyClick = (item) => {
+    const companyId = item.id || item.companyData?.id || 'details';
+    navigate(`/company/${companyId}`, { state: { companyData: item.companyData } });
   };
 
   const processedListings = useMemo(() => {
@@ -392,13 +459,18 @@ export default function CategoryPage() {
                   </div>
                 ) : processedListings.length === 0 ? (
                   <div className="empty-results-fallback">
-                    <p>No listings found matching the criteria.</p>
+                    <p>No companies found</p>
                   </div>
                 ) : (
                   processedListings.flatMap((item, index) => {
                     const items = [];
                     items.push(
-                      <div key={`listing-${item.id}`} className="listing-card">
+                      <div
+                        key={`listing-${item.id}`}
+                        className="listing-card"
+                        onClick={() => handleCompanyClick(item)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="listing-img">
                           <img src={item.img} alt={item.name} />
                         </div>
@@ -439,15 +511,18 @@ export default function CategoryPage() {
                             ))}
                           </div>
                           <div className="listing-actions">
-                            <a href={`tel:${item.phone}`} className="btn-call">
+                            <a href={`tel:${item.phone}`} className="btn-call" onClick={(e) => e.stopPropagation()}>
                               <i className="fa-solid fa-phone"></i> {item.phone}
                             </a>
-                            <button className="btn-whatsapp">
+                            <button className="btn-whatsapp" onClick={(e) => e.stopPropagation()}>
                               <i className="fa-brands fa-whatsapp"></i> WhatsApp
                             </button>
                             <button
                               className="btn-price"
-                              onClick={() => navigate("/company")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCompanyClick(item);
+                              }}
                             >
                               Enquire Now
                             </button>

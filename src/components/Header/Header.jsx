@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { setQuery, setLocation } from "../../store/store";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { setLoginOpen } from "../../store/store";
 import { apiService } from "../../services/api";
 import "./Header.css";
@@ -9,6 +8,7 @@ import { useDispatch } from "react-redux";
 export default function Header() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [showDrop, setShowDrop] = useState(false);
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
@@ -22,6 +22,9 @@ export default function Header() {
   const [companies, setCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [companiesError, setCompaniesError] = useState(null);
+  // Businesses data for category-based search
+  const [businesses, setBusinesses] = useState([]);
+  const [businessesLoading, setBusinessesLoading] = useState(false);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
@@ -60,6 +63,8 @@ export default function Header() {
 
         // Fetch all companies for search functionality
         await fetchCompanies();
+        // Fetch all businesses for category-based search
+        await fetchBusinesses();
       } catch (error) {
         console.error("Error fetching initial data:", error);
         setCities([]);
@@ -93,6 +98,23 @@ export default function Header() {
       setCompanies([]);
     } finally {
       setCompaniesLoading(false);
+    }
+  };
+
+  /* Fetch all businesses from Businesses API (for category-based search) */
+  const fetchBusinesses = async () => {
+    setBusinessesLoading(true);
+    try {
+      const response = await apiService.businesses.getAll();
+      const businessesArray = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.data || response.data?.businesses || []);
+      setBusinesses(businessesArray);
+    } catch (error) {
+      console.error("Error fetching businesses:", error);
+      setBusinesses([]);
+    } finally {
+      setBusinessesLoading(false);
     }
   };
 
@@ -148,14 +170,65 @@ export default function Header() {
     const mappedFiltered = filteredCompanies.map((company) => ({
       text: company.businessName,
       icon: 'fa-building',
-      companyData: company
+      companyData: company,
+      type: 'company'
     }));
+
+    // Also search businesses by category name
+    if (val.trim().length > 0) {
+      const normalizedVal = val.trim().toLowerCase();
+      const matchedCategories = [...new Set(
+        businesses
+          .filter(biz => {
+            const bizCategory = (biz.category || biz.categoryName || '').trim().toLowerCase();
+            return bizCategory.includes(normalizedVal);
+          })
+          .map(biz => biz.category || biz.categoryName)
+          .filter(Boolean)
+      )];
+
+      // Add category suggestions (avoid duplicates with company names)
+      matchedCategories.forEach(catName => {
+        const alreadyExists = mappedFiltered.some(item => 
+          item.text.toLowerCase() === catName.toLowerCase()
+        );
+        if (!alreadyExists) {
+          mappedFiltered.push({
+            text: catName,
+            icon: 'fa-tag',
+            companyData: null,
+            type: 'category'
+          });
+        }
+      });
+    }
     
     setFiltered(mappedFiltered);
     setShowDrop(val.length > 0);
   };
 
-  const handleSelect = (text, companyData = null) => {
+  /* Update URL params when city changes on the category page */
+  const updateCategoryPageCity = (newCity) => {
+    if (location.pathname === '/category') {
+      const searchParams = new URLSearchParams(location.search);
+      searchParams.set('city', newCity);
+      navigate(`/category?${searchParams.toString()}`, { replace: true });
+    }
+  };
+
+  const handleCityChange = (e) => {
+    const newCity = e.target.value;
+    setCity(newCity);
+    updateCategoryPageCity(newCity);
+  };
+
+  const handleCitySelectInOverlay = (selectedCity) => {
+    setCity(selectedCity);
+    setShowLocationView(false);
+    updateCategoryPageCity(selectedCity);
+  };
+
+  const handleSelect = (text, companyData = null, type = 'company') => {
     setShowDrop(false);
     setIsMobileModalOpen(false);
 
@@ -163,7 +236,10 @@ export default function Header() {
       // Autofill the search input with the selected company name
       setQuery(text.trim());
 
-      if (companyData) {
+      if (type === 'category') {
+        // Navigate to category page with the category name as query
+        navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(text.trim())}`);
+      } else if (companyData) {
         // Navigate to company page with company data
         const companyId = companyData.id || companyData._id || 'details';
         navigate(`/company/${companyId}`, { state: { companyData } });
@@ -182,17 +258,12 @@ export default function Header() {
           const companyId = company.id || company._id || 'details';
           navigate(`/company/${companyId}`, { state: { companyData: company } });
         } else {
-          navigate(`/category?city=${city}&query=${trimmedText}`);
+          navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(trimmedText)}`);
         }
       }
     } else {
       console.log("Condition failed: city or query is missing");
     }
-  };
-
-  const handleCitySelectInOverlay = (selectedCity) => {
-    setCity(selectedCity);
-    setShowLocationView(false);
   };
 
   const handleFocus = () => {
@@ -224,7 +295,7 @@ export default function Header() {
         navigate(`/company/${companyId}`, { state: { companyData: company } });
       } else {
         // Fallback to category search page when no exact match found
-        navigate(`/category?city=${city}&query=${trimmedQuery}`);
+        navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(trimmedQuery)}`);
       }
     } else {
       console.log("Condition failed: city or query is missing");
@@ -256,7 +327,7 @@ export default function Header() {
                 <i className="fa-solid fa-location-dot"></i>
                 <select
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={handleCityChange}
                   className="location-box"
                   aria-label="Select City"
                   disabled={loading}
@@ -301,23 +372,28 @@ export default function Header() {
               {showDrop && (
                 <div className="search-dropdown" id="searchDropdown">
                   <div className="search-dropdown-label">
-                    {query ? "Matching Companies" : "Popular Searches"}
+                    {query ? "Matching Results" : "Popular Searches"}
                   </div>
-                  {companiesLoading ? (
-                    <div className="search-item">Loading companies...</div>
+                  {companiesLoading || businessesLoading ? (
+                    <div className="search-item">Loading...</div>
                   ) : companiesError ? (
                     <div className="search-item">{companiesError}</div>
                   ) : filtered.length === 0 && query ? (
-                    <div className="search-item">No companies found</div>
+                    <div className="search-item">No results found</div>
                   ) : (
                     filtered.map((item, idx) => (
                       <div
                         key={idx}
                         className="search-item"
-                        onClick={() => handleSelect(item.text, item.companyData)}
+                        onClick={() => handleSelect(item.text, item.companyData, item.type)}
                       >
                         <i className={`fa-solid ${item.icon}`}></i>
-                        <span>{item.text}</span>
+                        <span>
+                          {item.text}
+                          {item.type === 'category' && (
+                            <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
+                          )}
+                        </span>
                       </div>
                     ))
                   )}
@@ -426,27 +502,32 @@ export default function Header() {
 
               <div className="search-overlay-content">
                 <h3 className="trending-title">
-                  {query ? "Matching Companies" : "Popular Searches"}
+                  {query ? "Matching Results" : "Popular Searches"}
                 </h3>
                 <div className="trending-list">
-                  {companiesLoading ? (
-                    <div className="trending-item">Loading companies...</div>
+                  {companiesLoading || businessesLoading ? (
+                    <div className="trending-item">Loading...</div>
                   ) : companiesError ? (
                     <div className="trending-item">{companiesError}</div>
                   ) : filtered.length === 0 && query ? (
-                    <div className="trending-item">No companies found</div>
+                    <div className="trending-item">No results found</div>
                   ) : (
                     filtered.map((item, idx) => (
                       <div
                         key={idx}
                         className="trending-item"
-                        onClick={() => handleSelect(item.text, item.companyData)}
+                        onClick={() => handleSelect(item.text, item.companyData, item.type)}
                       >
                         <div className="trending-icon-box">
                           <i className={`fa-solid ${item.icon}`}></i>
                         </div>
                         <div className="trending-text-box">
-                          <span className="trending-name">{item.text}</span>
+                          <span className="trending-name">
+                            {item.text}
+                            {item.type === 'category' && (
+                              <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     ))
