@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./CategoryPage.css";
 
@@ -97,9 +97,9 @@ function CategoryBanner({ banners }) {
 
 // ── MAIN COMPONENT ──
 export default function CategoryPage() {
-  const [searchParams] = useSearchParams();
-  const city = searchParams.get("city") || "";
-  const query = searchParams.get("query") || "";
+  const { city: cityParam, query: queryParam } = useParams();
+  const city = decodeURIComponent(cityParam || "");
+  const query = decodeURIComponent(queryParam || "");
 
   const navigate = useNavigate();
 
@@ -356,14 +356,14 @@ export default function CategoryPage() {
               {' > '}
               <span 
                 className="breadcrumb-item"
-                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+                onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(city)}/${encodeURIComponent(query)}`)}
               >
                 {city}
               </span>
               {' > '}
               <span 
                 className="breadcrumb-item"
-                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+                onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(city)}/${encodeURIComponent(query)}`)}
               >
                 {query}
               </span>

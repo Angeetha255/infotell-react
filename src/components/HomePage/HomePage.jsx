@@ -126,10 +126,10 @@ export default function HomePage() {
     fetchHomePageData();
   }, []);
 
-  /* ── Category click handler: navigate to CategoryPage with category name ── */
+  /* ── Category click handler: navigate to CategoryPage with clean URL ── */
   const handleCategoryClick = (categoryLabel) => {
     const city = getSelectedCity();
-    navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(categoryLabel)}`);
+    navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(categoryLabel)}`);
   };
 
   return (

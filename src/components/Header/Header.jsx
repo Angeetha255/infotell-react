@@ -16,34 +16,51 @@ export default function Header() {
   const [popularSearches, setPopularSearches] = useState([]);
   const [cities, setCities] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [city, setCity] = useState("");
+
+  // Derive initial city from URL, localStorage, or empty
+  const getInitialCity = () => {
+    // Priority 1: URL path (category pages always have city in URL)
+    const categoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
+    if (categoryMatch) {
+      return decodeURIComponent(categoryMatch[1]);
+    }
+    // Priority 2: localStorage (persists across refresh for all pages)
+    const storedCity = localStorage.getItem('infotell_selected_city');
+    if (storedCity) {
+      return storedCity;
+    }
+    // Priority 3: empty (will be filled from API default)
+    return "";
+  };
+
+  const [city, setCity] = useState(getInitialCity());
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [companiesLoading, setCompaniesLoading] = useState(false);
   const [companiesError, setCompaniesError] = useState(null);
-  // Businesses data for category-based search
   const [businesses, setBusinesses] = useState([]);
   const [businessesLoading, setBusinessesLoading] = useState(false);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
 
-  // Checks exclusively for mobile screen sizes (below 1200px)
   const isMobileSize = () => window.innerWidth < 1200;
+
+  // Persist city to localStorage whenever it changes
+  useEffect(() => {
+    if (city) {
+      localStorage.setItem('infotell_selected_city', city);
+    }
+  }, [city]);
 
   /* Fetch cities and popular searches from API */
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        // Fetch cities from /districts endpoint
         const citiesResponse = await apiService.cities.getAll();
-        console.log("Cities API response:", citiesResponse);
-        console.log("Cities data type:", typeof citiesResponse.data);
-        console.log("Cities data:", citiesResponse.data);
 
-        // Handle different response structures
         const citiesArray = Array.isArray(citiesResponse.data)
           ? citiesResponse.data
           : (citiesResponse.data?.districts || citiesResponse.data?.data || []);
@@ -51,24 +68,28 @@ export default function Header() {
         if (citiesArray.length > 0) {
           const citiesData = citiesArray.map(c => c.name || c.districtName || c.district);
           setCities(citiesData);
-          setCity(citiesData[0] || "");
+          // Only set city from API if city is not already set from URL or localStorage
+          if (!city) {
+            setCity(citiesData[0] || "");
+          }
         } else {
           setCities([]);
-          setCity("");
+          if (!city) {
+            setCity("");
+          }
         }
 
-        // Popular searches - will be empty until backend provides endpoint
         setPopularSearches([]);
         setFiltered([]);
 
-        // Fetch all companies for search functionality
         await fetchCompanies();
-        // Fetch all businesses for category-based search
         await fetchBusinesses();
       } catch (error) {
         console.error("Error fetching initial data:", error);
         setCities([]);
-        setCity("");
+        if (!city) {
+          setCity("");
+        }
         setPopularSearches([]);
         setFiltered([]);
       } finally {
@@ -79,18 +100,14 @@ export default function Header() {
     fetchInitialData();
   }, []);
 
-  /* Fetch all companies from Public Companies API */
   const fetchCompanies = async () => {
     setCompaniesLoading(true);
     setCompaniesError(null);
     try {
       const response = await apiService.publicCompanies.getAll();
-      console.log("Companies API response:", response);
-      
       const companiesArray = Array.isArray(response.data)
         ? response.data
         : (response.data?.companies || response.data?.data || []);
-      
       setCompanies(companiesArray);
     } catch (error) {
       console.error("Error fetching companies:", error);
@@ -101,7 +118,6 @@ export default function Header() {
     }
   };
 
-  /* Fetch all businesses from Businesses API (for category-based search) */
   const fetchBusinesses = async () => {
     setBusinessesLoading(true);
     try {
@@ -118,14 +134,12 @@ export default function Header() {
     }
   };
 
-  /* Sticky header controller */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* Close desktop dropdown when clicking outside */
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -141,7 +155,17 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  /* Sync body scrolling lock toggle when Mobile Overlay mounts */
+  /* Sync city from URL when on a category page */
+  useEffect(() => {
+    const categoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
+    if (categoryMatch) {
+      const urlCity = decodeURIComponent(categoryMatch[1]);
+      if (urlCity && urlCity !== city) {
+        setCity(urlCity);
+      }
+    }
+  }, [location.pathname]);
+
   useEffect(() => {
     if (isMobileModalOpen) {
       document.body.style.overflow = "hidden";
@@ -158,7 +182,6 @@ export default function Header() {
     const val = e.target.value;
     setQuery(val);
     
-    // Filter companies by district (city) and businessName (query)
     const filteredCompanies = companies.filter((company) => {
       const districtMatch = company.district === city;
       const nameMatch = company.businessName && 
@@ -166,7 +189,6 @@ export default function Header() {
       return districtMatch && nameMatch;
     });
     
-    // Map to the format expected by the dropdown
     const mappedFiltered = filteredCompanies.map((company) => ({
       text: company.businessName,
       icon: 'fa-building',
@@ -174,7 +196,6 @@ export default function Header() {
       type: 'company'
     }));
 
-    // Also search businesses by category name
     if (val.trim().length > 0) {
       const normalizedVal = val.trim().toLowerCase();
       const matchedCategories = [...new Set(
@@ -187,7 +208,6 @@ export default function Header() {
           .filter(Boolean)
       )];
 
-      // Add category suggestions (avoid duplicates with company names)
       matchedCategories.forEach(catName => {
         const alreadyExists = mappedFiltered.some(item => 
           item.text.toLowerCase() === catName.toLowerCase()
@@ -207,12 +227,11 @@ export default function Header() {
     setShowDrop(val.length > 0);
   };
 
-  /* Update URL params when city changes on the category page */
   const updateCategoryPageCity = (newCity) => {
-    if (location.pathname === '/category') {
-      const searchParams = new URLSearchParams(location.search);
-      searchParams.set('city', newCity);
-      navigate(`/category?${searchParams.toString()}`, { replace: true });
+    const categoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
+    if (categoryMatch) {
+      const query = categoryMatch[2];
+      navigate(`/category/${encodeURIComponent(newCity)}/${encodeURIComponent(query)}`, { replace: true });
     }
   };
 
@@ -233,19 +252,15 @@ export default function Header() {
     setIsMobileModalOpen(false);
 
     if (city !== undefined && text !== undefined && text.trim() !== "") {
-      // Autofill the search input with the selected company name
       setQuery(text.trim());
 
       if (type === 'category') {
-        // Navigate to category page with the category name as query
-        navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(text.trim())}`);
+        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(text.trim())}`);
       } else if (companyData) {
-        // Navigate to company page with company data
         const companyId = companyData.id || companyData._id || 'details';
         navigate(`/company/${companyId}`, { state: { companyData } });
       } else {
         const trimmedText = text.trim();
-        // Use the same filtering logic as the autocomplete dropdown
         const matchingCompanies = companies.filter((company) => {
           const districtMatch = company.district === city;
           const nameMatch = company.businessName && 
@@ -258,11 +273,9 @@ export default function Header() {
           const companyId = company.id || company._id || 'details';
           navigate(`/company/${companyId}`, { state: { companyData: company } });
         } else {
-          navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(trimmedText)}`);
+          navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(trimmedText)}`);
         }
       }
-    } else {
-      console.log("Condition failed: city or query is missing");
     }
   };
 
@@ -280,7 +293,6 @@ export default function Header() {
     if (city !== undefined && query !== undefined && query.trim() !== "") {
       const trimmedQuery = query.trim();
       
-      // Use the same filtering logic as the autocomplete dropdown (handleInput)
       const matchingCompanies = companies.filter((company) => {
         const districtMatch = company.district === city;
         const nameMatch = company.businessName && 
@@ -289,16 +301,12 @@ export default function Header() {
       });
       
       if (matchingCompanies.length > 0) {
-        // Navigate to the first matching company's detail page (same as handleSelect)
         const company = matchingCompanies[0];
         const companyId = company.id || company._id || 'details';
         navigate(`/company/${companyId}`, { state: { companyData: company } });
       } else {
-        // Fallback to category search page when no exact match found
-        navigate(`/category?city=${encodeURIComponent(city)}&query=${encodeURIComponent(trimmedQuery)}`);
+        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(trimmedQuery)}`);
       }
-    } else {
-      console.log("Condition failed: city or query is missing");
     }
   };
 
@@ -306,14 +314,12 @@ export default function Header() {
     <>
       <header className={`site-header${scrolled ? " scrolled" : ""}`}>
         <div className="container header-inner">
-          {/* Brand Column */}
           <div className="brand-row">
             <Link to="/" className="brand-link">
               <div className="brand-name">Infotell</div>
             </Link>
           </div>
 
-          {/* Normal View Search (Includes Desktop & Tablets >= 992px) */}
           {!isMobileSize() && (
             <div
               className="search-relative"
@@ -368,7 +374,6 @@ export default function Header() {
                 </button>
               </div>
 
-              {/* Desktop Dropdown Box Panel */}
               {showDrop && (
                 <div className="search-dropdown" id="searchDropdown">
                   <div className="search-dropdown-label">
@@ -402,7 +407,6 @@ export default function Header() {
             </div>
           )}
 
-          {/* Header Action Buttons (Always Visible) */}
           <div className="header-actions">
             <button
               className="login-btn"
@@ -416,7 +420,6 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Mobile Screen Only View Search Layer (Hidden above 1200px, Location Box omitted) */}
         {isMobileSize() && (
           <div className="container mobile-search-row-container">
             <div
@@ -446,7 +449,6 @@ export default function Header() {
         )}
       </header>
 
-      {/* Fullscreen Search / Location Overlay Engine Box */}
       {isMobileModalOpen && (
         <div className="search-overlay">
           <div className="search-overlay-header">
@@ -463,7 +465,6 @@ export default function Header() {
               ←
             </button>
 
-            {/* Persistent Central Location Selection Button */}
             <div
               className="overlay-location-picker centered-header-picker"
               onClick={() => setShowLocationView(true)}

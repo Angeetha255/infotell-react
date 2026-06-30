@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
@@ -10,12 +10,15 @@ const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
 const BACKEND_BASE_URL = 'http://localhost:5006';
 
 export default function ProductPage() {
-  const [searchParams] = useSearchParams();
+  const { productId } = useParams();
   const navigate = useNavigate();
-  
-  const city = searchParams.get('city') || 'Madurai';
-  const company = searchParams.get('company') || 'Company';
-  const productId = searchParams.get('product');
+  const location = useLocation();
+
+  // Breadcrumb state - initialized from location.state, updated dynamically from API data
+  const [breadcrumbCity, setBreadcrumbCity] = useState(location.state?.city || 'Madurai');
+  const [breadcrumbCompanyName, setBreadcrumbCompanyName] = useState(location.state?.company || 'Company');
+  const [breadcrumbCompanyId, setBreadcrumbCompanyId] = useState(location.state?.companyId || '');
+  const [breadcrumbCategory, setBreadcrumbCategory] = useState(location.state?.category || '');
 
   const [productData, setProductData] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
@@ -124,6 +127,11 @@ export default function ProductPage() {
         if (foundProduct) {
           setProductData(foundProduct);
 
+          // Update breadcrumb with product-level data (category from product's productCategory)
+          if (foundProduct.productCategory) {
+            setBreadcrumbCategory(foundProduct.productCategory);
+          }
+
           // Fetch similar products based on same productCategory or companyId
           const similarList = allProductsList
             .filter(p => String(p.id) !== String(productId))
@@ -157,25 +165,84 @@ export default function ProductPage() {
             });
           setSimilarProducts(similarList);
 
-          // Fetch company info from http://localhost:5006/api/public/companies/{companyId}
+          // Two-step company data fetch:
+          // Step 1: Fetch business by product's companyId (business ID) to get business details + actual companyId
+          // Step 2: Fetch company by the business's companyId to get full address details
           if (foundProduct.companyId) {
             try {
-              const companyResponse = await apiService.businesses.getById(foundProduct.companyId);
-              if (companyResponse.data) {
-                // API returns { company: { ... }, businesses: [...], products: [...] }
-                const companyData = companyResponse.data.company || companyResponse.data;
+              // Step 1: Fetch business record - this has the actual companyId reference
+              const businessResponse = await apiService.businesses.getById(foundProduct.companyId);
+              if (businessResponse.data) {
+                const businessData = businessResponse.data.business || businessResponse.data;
+                
+                // Extract companyId from the business record
+                const actualCompanyId = businessData.companyId || businessData.company_id || '';
+                
+                // Update breadcrumb company name from business data (fallback)
+                const businessName = businessData.businessName || businessData.name || breadcrumbCompanyName;
+                setBreadcrumbCompanyName(businessName);
+
+                // Store business-level info as fallback
                 setCompanyInfo({
-                  name: companyData.businessName || companyData.name || company,
-                  address: [companyData.area, companyData.district, companyData.state]
+                  id: actualCompanyId || foundProduct.companyId,
+                  name: businessName,
+                  address: [businessData.area, businessData.district, businessData.state]
                     .filter(Boolean)
-                    .join(', ') || companyData.address || "Address not available",
-                  phone: companyData.mobileNumber || companyData.phone || '',
-                  rating: companyData.rating || "0.0",
-                  reviewCount: companyData.reviewCount || 0
+                    .join(', ') || businessData.address || "Address not available",
+                  phone: businessData.mobileNumber || businessData.phone || '',
+                  rating: businessData.rating || "0.0",
+                  reviewCount: businessData.reviewCount || 0
                 });
+
+                // Update breadcrumb with business data if available
+                if (businessData.district || businessData.city || businessData.area) {
+                  setBreadcrumbCity(businessData.district || businessData.city || businessData.area);
+                }
+
+                // Step 2: If we have an actual companyId, fetch the company for full address details
+                if (actualCompanyId) {
+                  try {
+                    const companyResponse = await apiService.publicCompanies.getById(actualCompanyId);
+                    if (companyResponse.data) {
+                      const companyData = companyResponse.data.company || companyResponse.data;
+                      
+                      const resolvedName = companyData.businessName || companyData.name || businessName;
+                      const resolvedAddress = [companyData.area, companyData.district, companyData.state]
+                        .filter(Boolean)
+                        .join(', ') || companyData.address || businessData.address || "Address not available";
+                      
+                      setCompanyInfo({
+                        id: actualCompanyId,
+                        name: resolvedName,
+                        address: resolvedAddress,
+                        phone: companyData.mobileNumber || companyData.phone || businessData.phone || '',
+                        rating: companyData.rating || businessData.rating || "0.0",
+                        reviewCount: companyData.reviewCount || businessData.reviewCount || 0
+                      });
+
+                      // Update breadcrumb with full company data
+                      setBreadcrumbCompanyId(actualCompanyId);
+                      setBreadcrumbCompanyName(resolvedName);
+                      
+                      const resolvedCity = companyData.district || companyData.city || companyData.area || breadcrumbCity;
+                      setBreadcrumbCity(resolvedCity);
+                    }
+                  } catch (companyErr) {
+                    // Company API failed, we already have business data as fallback
+                    // Keep the business's companyId for breadcrumb navigation
+                    setBreadcrumbCompanyId(actualCompanyId);
+                  }
+                } else {
+                  // No actual companyId, use the product's companyId as the business ID for navigation
+                  setBreadcrumbCompanyId(foundProduct.companyId);
+                }
               }
             } catch (err) {
-              console.error("Error fetching company info:", err);
+              console.error("Error fetching business/company info:", err);
+              // Fallback: use product's companyId directly for breadcrumb
+              if (foundProduct.companyId) {
+                setBreadcrumbCompanyId(foundProduct.companyId);
+              }
             }
           }
 
@@ -217,7 +284,14 @@ export default function ProductPage() {
   };
 
   const handleProductNavigation = (productId) => {
-    navigate(`/product?city=${city || 'Madurai'}&company=${company || 'Company'}&product=${productId}`);
+    navigate(`/product/${productId}`, { 
+      state: { 
+        city: breadcrumbCity, 
+        company: breadcrumbCompanyName,
+        companyId: breadcrumbCompanyId,
+        category: breadcrumbCategory
+      } 
+    });
   };
 
   const handleBreadcrumbClick = (path) => {
@@ -270,24 +344,30 @@ export default function ProductPage() {
         <div className="pdp-v4-breadcrumb-trail">
           <span 
             className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+            onClick={() => handleBreadcrumbClick('/')}
           >
-            {city || "Madurai"}
+            Home
           </span>
           {' > '}
           <span 
             className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+            onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(breadcrumbCity)}/${encodeURIComponent(breadcrumbCategory)}`)}
           >
-            {company || "Company"}
+            {breadcrumbCity}
           </span>
           {' > '}
-          <span 
-            className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
-          >
-            Products
-          </span>
+          {breadcrumbCompanyId ? (
+            <span 
+              className="pdp-v4-breadcrumb-item"
+              onClick={() => handleBreadcrumbClick(`/company/${breadcrumbCompanyId}`)}
+            >
+              {breadcrumbCompanyName}
+            </span>
+          ) : (
+            <span className="pdp-v4-breadcrumb-current">
+              {breadcrumbCompanyName}
+            </span>
+          )}
           {' > '}
           <span className="pdp-v4-breadcrumb-current">
             {productEntity.name}
@@ -348,7 +428,7 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {companyInfo?.name || company || "Company"}
+                      {companyInfo?.name || breadcrumbCompanyName || "Company"}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
                       <i className="fas fa-map-marker-alt sidebar-info-icon"></i>{companyInfo?.address || "Address not available"}
@@ -451,7 +531,7 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {companyInfo?.name || company || "Company"}
+                      {companyInfo?.name || breadcrumbCompanyName || "Company"}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
                       {companyInfo?.address || "Address not available"}
@@ -554,7 +634,7 @@ export default function ProductPage() {
                 Quality
               </div>
             </div>
-            <div className="col-sm-4 text-center d-flex flex-column align-items-center justify-content-center">
+                <div className="col-sm-4 text-center d-flex flex-column align-items-center justify-content-center">
               <div className="pdp-v4-circular-gauge-wrapper">
                 <svg
                   className="pdp-v4-circular-gauge-svg"

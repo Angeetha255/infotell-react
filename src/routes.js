@@ -5,11 +5,11 @@ import LoginPage from './pages/LoginPage';
 import ProductPage from './pages/ProductPage';
 
 const routes = [
-  { path: '/',           element: HomePage,    exact: true },
-  { path: '/category',   element: CategoryPage },
-  { path: '/company/:id?', element: CompanyPage },
-  { path: '/product',    element: ProductPage },
-  { path: '/login',      element: LoginPage },
+  { path: '/',                    element: HomePage,      exact: true },
+  { path: '/category/:city/:query', element: CategoryPage },
+  { path: '/company/:id?',        element: CompanyPage },
+  { path: '/product/:productId',  element: ProductPage },
+  { path: '/login',               element: LoginPage },
 ];
 
 export default routes;

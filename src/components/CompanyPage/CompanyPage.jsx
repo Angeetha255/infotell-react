@@ -240,7 +240,14 @@ export default function CompanyPage() {
   };
 
   const handleProductNavigation = (productId) => {
-    navigate(`/product?city=${companyData?.city || 'Madurai'}&company=${companyData?.name || 'Company'}&product=${productId}`);
+    navigate(`/product/${productId}`, { 
+      state: { 
+        city: companyData?.city || companyData?.district || 'Madurai', 
+        company: companyData?.name || companyData?.businessName || 'Company',
+        companyId: companyData?.id || id,
+        category: companyData?.category || ''
+      } 
+    });
   };
 
   // Helper function to determine open status from businessHours
