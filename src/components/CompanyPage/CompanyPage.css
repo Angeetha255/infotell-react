@@ -660,6 +660,30 @@
   line-height: 1.4;
 }
 
+.sidebar-info-value-full {
+  flex: 1;
+}
+
+.address-single-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.address-field {
+  white-space: nowrap;
+}
+
+.address-separator {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
 .sidebar-vertical-navigation-links {
   display: flex;
   flex-direction: column;

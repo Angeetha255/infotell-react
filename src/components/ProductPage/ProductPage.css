@@ -20,9 +20,21 @@
   text-transform: capitalize;
 }
 
+.pdp-v4-breadcrumb-item {
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.pdp-v4-breadcrumb-item:hover {
+  color: var(--secondary-dark);
+  text-decoration: underline;
+}
+
 .pdp-v4-breadcrumb-current {
   color: var(--secondary-dark);
   font-weight: 700;
+  cursor: default;
 }
 
 /* Split Column Workspace Flex Engine */
@@ -77,6 +89,15 @@
 .pdp-v4-slider-arrow:hover {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+.pdp-v4-slider-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pdp-v4-arrow-hidden {
+  display: none !important;
 }
 
 .pdp-v4-slider-x-track {
@@ -259,12 +280,59 @@
 .pdp-v4-product-price {
   font-size: 1.3rem;
   font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 1rem;
+}
+
+.pdp-v4-product-price .price-with-discount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.pdp-v4-product-price .price-line-1 {
+  display: flex;
+  align-items: center;
   
-  background: var(--gradient-text);
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  gap: 0.5rem;
+}
+
+.pdp-v4-product-price .product-discount-price {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.pdp-v4-product-price .product-discount-percentage {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.pdp-v4-product-price .price-line-2 {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pdp-v4-product-price .product-mrp-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pdp-v4-product-price .product-mrp-strikethrough {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.pdp-v4-product-price .product-mrp-only {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #16a34a;
 }
 
 .pdp-v4-divider {
@@ -316,6 +384,7 @@
 
 .pdp-v4-spec-val {
   color: #475569;
+  font-weight: 700;
 }
 
 .pdp-v4-description-text {

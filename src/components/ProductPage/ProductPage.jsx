@@ -1,153 +1,31 @@
-import React, { useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { apiService } from "../../services/api";
 import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
 import ImageCardXFlow from "../ImageCardXFlow/ImageCardXFlow";
 import ShareButton from "../ShareButton/ShareButton";
 
-// ── SIMULATED EXTENDED DATABASE MOCK MODEL ──
-const MOCK_PRODUCT_DATABASE = {
-  "prod-101": {
-    name: "Custom Cloud Enterprise Resource Planning Premium Suite Pack",
-    price: "₹45,000 / Module",
-    description:
-      "An end-to-end industry scale architecture deployment mapping accounting ledger automation, supply-chain routing logs, automated human asset pipelines, and telemetry performance tracking protocols.",
-    specs: [
-      { label: "Sheet Material", value: "Color Coated Steel" },
-      { label: "Sheet Thickness", value: "0.47 mm" },
-      { label: "Thickness", value: "0.47mm, 0.50mm" },
-      { label: "Profile Type", value: "Corrugated" },
-    ],
-    media: [
-      "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1563013544-824ae1d704d3?auto=format&fit=crop&w=800&q=80",
-    ],
-  },
-  "prod-102": {
-    name: "E-Commerce Framework Implementation",
-    price: "₹25,000 Startup Flat Rate",
-    description:
-      "Turnkey headless commerce architecture deployments engineered utilizing modern reactive component design blocks.",
-    specs: [
-      { label: "Framework Platform", value: "Next.js Headless v14" },
-      {
-        label: "Performance Metric",
-        value: "Sub 200ms Server Side Render Generation",
-      },
-    ],
-    media: [
-      "https://images.unsplash.com/photo-1563013544-824ae1d704d3?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80",
-    ],
-  },
-};
-
-const SIMILAR_PRODUCTS = {
-  products: [
-    {
-      id: "prod-1",
-      name: "CloudScale Custom Automated Enterprise ERP Workspace Platform",
-      price: "₹45,000 / Year",
-      images: [
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1504868584819-f8e8b446d2e4?auto=format&fit=crop&w=300&q=80",
-      ],
-    },
-    {
-      id: "prod-2",
-      name: "OmniChannel Responsive E-Commerce Software Engine Suite",
-      price: "₹25,000 One-time",
-      images: [
-        "https://images.unsplash.com/photo-1563013544-824ae1d704d3?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=300&q=80",
-      ],
-    },
-    {
-      id: "prod-3",
-      name: "SecureGate Corporate Cyber-Security Threat Shield Firewall Proxy Node",
-      price: "Contact for Quote",
-      images: [
-        "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&w=300&q=80",
-      ],
-    },
-    {
-      id: "prod-4",
-      name: "OmniChannel Responsive E-Commerce Software Engine Suite",
-      price: "₹25,000 One-time",
-      images: [
-        "https://images.unsplash.com/photo-1563013544-824ae1d704d3?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=300&q=80",
-      ],
-    },
-    {
-      id: "prod-5",
-      name: "SecureGate Corporate Cyber-Security Threat Shield Firewall Proxy Node",
-      price: "Contact for Quote",
-      images: [
-        "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&w=300&q=80",
-      ],
-    },
-  ],
-};
-
-const MOCK_COMPANY_INFO = {
-  name: "Gv Solutions Private Limited",
-  phone: "+91 84605 06156",
-  email: "procure@gvsolutions.dev",
-  address: "Surveyor Colony, Madurai, Tamil Nadu - 625007",
-  rating: "5.0",
-  totalReviews: 6,
-};
-
-const INITIAL_COMMENTS = [
-  {
-    id: 1,
-    user: "Arun Kumar",
-    rating: 5,
-    date: "2 weeks ago",
-    text: "Exceptional architecture stack. The deployment setup was incredibly quick and saved us weeks of native infrastructure configuration work.",
-  },
-  {
-    id: 2,
-    user: "Priya Sharma",
-    rating: 5,
-    date: "1 month ago",
-    text: "The dynamic specification parameters accurately mapped directly with our backend manufacturing tracking systems seamlessly.",
-  },
-  {
-    id: 3,
-    user: "David M.",
-    rating: 4,
-    date: "2 months ago",
-    text: "Extremely robust framework build blocks. Customer assistance query response speed was fast and helpful during deployment.",
-  },
-  {
-    id: 4,
-    user: "Rajesh T.",
-    rating: 5,
-    date: "3 months ago",
-    text: "High quality steel corrugated sheets mapping matches up exactly with simulated parameters. Highly recommended product line.",
-  },
-];
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
+const BACKEND_BASE_URL = 'http://localhost:5006';
 
 export default function ProductPage() {
-  const { city, company, productId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  
+  const city = searchParams.get('city') || 'Madurai';
+  const company = searchParams.get('company') || 'Company';
+  const productId = searchParams.get('product');
 
-  const productEntity =
-    MOCK_PRODUCT_DATABASE[productId] || MOCK_PRODUCT_DATABASE["prod-101"];
+  const [productData, setProductData] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [userComments, setUserComments] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // UI State hooks
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
   const [visibleCommentsCount, setVisibleCommentsCount] = useState(2);
-  const [userComments, setUserComments] = useState(INITIAL_COMMENTS);
 
   const thumbnailScrollContainerRef = useRef(null);
 
@@ -158,21 +36,259 @@ export default function ProductPage() {
   const strokeDashoffset =
     circumference - (satisfactionScore / 100) * circumference;
 
+  // Resolve relative image path to full URL
+  const resolveImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    return `${BACKEND_BASE_URL}/uploads/${imagePath}`;
+  };
+
+  // Build media array: always include coverImage first, then add productImages, fall back to placeholder
+  const buildMediaArray = (product) => {
+    const images = [];
+    const resolvedCoverImage = resolveImageUrl(product.coverImage);
+    if (resolvedCoverImage) {
+      images.push(resolvedCoverImage);
+    }
+    if (product.productImages && Array.isArray(product.productImages) && product.productImages.length > 0) {
+      product.productImages.forEach(img => {
+        const resolved = resolveImageUrl(img);
+        if (resolved && !images.includes(resolved)) {
+          images.push(resolved);
+        }
+      });
+    }
+    if (images.length === 0) {
+      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+        product.images.forEach(img => {
+          const resolved = resolveImageUrl(img);
+          if (resolved && !images.includes(resolved)) {
+            images.push(resolved);
+          }
+        });
+      } else if (product.image) {
+        const resolved = resolveImageUrl(product.image);
+        if (resolved) images.push(resolved);
+      }
+    }
+    if (images.length === 0) {
+      images.push(PLACEHOLDER_IMAGE);
+    }
+    return images;
+  };
+
+  // Scroll thumbnails left/right
+  const handleScrollThumbnails = (direction) => {
+    if (thumbnailScrollContainerRef.current) {
+      const scrollAmount = 120;
+      const currentScroll = thumbnailScrollContainerRef.current.scrollLeft;
+      thumbnailScrollContainerRef.current.scrollTo({
+        left: direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  // Navigate to previous image
+  const handlePreviousImage = () => {
+    if (selectedImgIdx > 0) {
+      setSelectedImgIdx(selectedImgIdx - 1);
+    }
+  };
+
+  // Navigate to next image
+  const handleNextImage = () => {
+    if (productEntity.media && selectedImgIdx < productEntity.media.length - 1) {
+      setSelectedImgIdx(selectedImgIdx + 1);
+    }
+  };
+
+  // Fetch product data on mount
+  useEffect(() => {
+    const fetchProductData = async () => {
+      setLoading(true);
+      try {
+        // Fetch all products and find the one matching the productId
+        // (getById endpoint returns 500 error, so we use getAll as workaround)
+        const allProductsResponse = await apiService.products.getAll();
+        let foundProduct = null;
+        const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+        
+        if (allProductsResponse.data) {
+          // Find the specific product by matching the string/number id
+          foundProduct = allProductsList.find(p => String(p.id) === String(productId));
+        }
+
+        if (foundProduct) {
+          setProductData(foundProduct);
+
+          // Fetch similar products based on same productCategory or companyId
+          const similarList = allProductsList
+            .filter(p => String(p.id) !== String(productId))
+            .filter(p => p.productCategory === foundProduct.productCategory || String(p.companyId) === String(foundProduct.companyId))
+            .slice(0, 5)
+            .map(p => {
+              let simImages;
+              if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                simImages = p.productImages.map(img => resolveImageUrl(img));
+              } else if (p.coverImage) {
+                simImages = [resolveImageUrl(p.coverImage)];
+              } else if (p.images && p.images.length > 0) {
+                simImages = p.images.map(img => resolveImageUrl(img));
+              } else if (p.image) {
+                simImages = [resolveImageUrl(p.image)];
+              } else {
+                simImages = [PLACEHOLDER_IMAGE];
+              }
+              const displayPrice = p.discountPrice || p.productMrp || p.price || '';
+              return {
+                id: p.id,
+                name: p.productName || p.name || 'Product',
+                price: displayPrice ? `₹${displayPrice}` : '',
+                images: simImages,
+                // Structured price data for new price layout
+                productMrp: p.productMrp,
+                discountPrice: p.discountPrice,
+                discountPercentage: p.discountPercentage,
+                priceFlag: p.displayPrice !== false
+              };
+            });
+          setSimilarProducts(similarList);
+
+          // Fetch company info from http://localhost:5006/api/public/companies/{companyId}
+          if (foundProduct.companyId) {
+            try {
+              const companyResponse = await apiService.businesses.getById(foundProduct.companyId);
+              if (companyResponse.data) {
+                // API returns { company: { ... }, businesses: [...], products: [...] }
+                const companyData = companyResponse.data.company || companyResponse.data;
+                setCompanyInfo({
+                  name: companyData.businessName || companyData.name || company,
+                  address: [companyData.area, companyData.district, companyData.state]
+                    .filter(Boolean)
+                    .join(', ') || companyData.address || "Address not available",
+                  phone: companyData.mobileNumber || companyData.phone || '',
+                  rating: companyData.rating || "0.0",
+                  reviewCount: companyData.reviewCount || 0
+                });
+              }
+            } catch (err) {
+              console.error("Error fetching company info:", err);
+            }
+          }
+
+          // Fetch product reviews
+          try {
+            const reviewsResponse = await apiService.reviews.getByProduct(productId);
+            if (reviewsResponse.data) {
+              const reviewsList = Array.isArray(reviewsResponse.data)
+                ? reviewsResponse.data
+                : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+              const mappedComments = reviewsList.map(r => ({
+                id: r.id,
+                user: r.userName,
+                rating: r.rating,
+                date: new Date(r.createdAt).toLocaleDateString(),
+                text: r.comment
+              }));
+              setUserComments(mappedComments);
+            }
+          } catch (reviewError) {
+            console.error("Error fetching reviews:", reviewError);
+            setUserComments([]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching product data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchProductData();
+    }
+  }, [productId]);
+
   const handleShowMoreComments = () => {
     setVisibleCommentsCount((prev) => Math.min(prev + 2, userComments.length));
   };
 
   const handleProductNavigation = (productId) => {
-    // Navigates passing selections via location query parameters
-    navigate(`/product?city=Madurai&company=Gv-Solutions&product=${productId}`);
+    navigate(`/product?city=${city || 'Madurai'}&company=${company || 'Company'}&product=${productId}`);
+  };
+
+  const handleBreadcrumbClick = (path) => {
+    navigate(path);
+  };
+
+  if (loading) {
+    return <div className="pdp-v4-root-wrapper"><div className="container"><p>Loading product details...</p></div></div>;
+  }
+
+  if (!productData) {
+    return <div className="pdp-v4-root-wrapper"><div className="container"><p>Product not found.</p></div></div>;
+  }
+
+  const displayPrice = productData.discountPrice || productData.productMrp || productData.price || '';
+
+  // Helper function to convert text to Title Case
+  const toTitleCase = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  // Map API specifications [{name, detail}] to specs [{label, value}]
+  const mapSpecs = (specs) => {
+    if (!specs) return [];
+    if (Array.isArray(specs) && specs.length > 0) {
+      return specs.map(s => ({
+        label: toTitleCase(s.name || s.label || ''),
+        value: toTitleCase(s.detail || s.value || '')
+      }));
+    }
+    return [];
+  };
+
+  const productEntity = {
+    name: productData.productName || productData.name || 'Product',
+    price: displayPrice ? `₹${displayPrice}` : '',
+    description: productData.descriptions || productData.description || '',
+    specs: mapSpecs(productData.specifications || productData.specs),
+    media: buildMediaArray(productData)
   };
 
   return (
     <div className="pdp-v4-root-wrapper">
       <div className="container pdp-v4-main-container">
         <div className="pdp-v4-breadcrumb-trail">
-          {city || "Madurai"} &gt; {company || "Gv Solutions"} &gt; Products
-          &gt;{" "}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            {city || "Madurai"}
+          </span>
+          {' > '}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            {company || "Company"}
+          </span>
+          {' > '}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            Products
+          </span>
+          {' > '}
           <span className="pdp-v4-breadcrumb-current">
             {productEntity.name}
           </span>
@@ -195,8 +311,9 @@ export default function ProductPage() {
               <div className="pdp-v4-slider-controls-row">
                 <button
                   type="button"
-                  className="pdp-v4-slider-arrow"
-                  onClick={() => handleScrollThumbnails("left")}
+                  className={`pdp-v4-slider-arrow ${selectedImgIdx === 0 || productEntity.media.length <= 1 ? 'pdp-v4-arrow-hidden' : ''}`}
+                  onClick={handlePreviousImage}
+                  disabled={selectedImgIdx === 0 || productEntity.media.length <= 1}
                 >
                   <i className="fas fa-chevron-left"></i>
                 </button>
@@ -218,8 +335,9 @@ export default function ProductPage() {
 
                 <button
                   type="button"
-                  className="pdp-v4-slider-arrow"
-                  onClick={() => handleScrollThumbnails("right")}
+                  className={`pdp-v4-slider-arrow ${selectedImgIdx === productEntity.media.length - 1 || productEntity.media.length <= 1 ? 'pdp-v4-arrow-hidden' : ''}`}
+                  onClick={handleNextImage}
+                  disabled={selectedImgIdx === productEntity.media.length - 1 || productEntity.media.length <= 1}
                 >
                   <i className="fas fa-chevron-right"></i>
                 </button>
@@ -230,28 +348,28 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {MOCK_COMPANY_INFO.name}
+                      {companyInfo?.name || company || "Company"}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
-                      <i className="fas fa-map-marker-alt sidebar-info-icon"></i>{MOCK_COMPANY_INFO.address}
+                      <i className="fas fa-map-marker-alt sidebar-info-icon"></i>{companyInfo?.address || "Address not available"}
                     </p>
                   </div>
                   <div className="pdp-v4-company-stars-summary">
                     <span className="pdp-v4-stars-badge">
-                      {MOCK_COMPANY_INFO.rating} ★
+                      {companyInfo?.rating || "0.0"} ★
                     </span>
                     <span className="pdp-v4-stars-label">
-                      ({MOCK_COMPANY_INFO.totalReviews} Reviews)
+                      ({companyInfo?.reviewCount || 0} Reviews)
                     </span>
                   </div>
                 </div>
 
                 <div className="company-card-actions">
                   <a
-                    href={`tel:${MOCK_COMPANY_INFO.phone}`}
+                    href={`tel:${companyInfo?.phone || ''}`}
                     className="pdp-v4-action-btn pdp-v4-btn-phone"
                   >
-                    <i className="fas fa-phone"></i> {MOCK_COMPANY_INFO.phone}
+                    <i className="fas fa-phone"></i> {companyInfo?.phone || "Phone not available"}
                   </a>
                 </div>
               </div>
@@ -260,7 +378,24 @@ export default function ProductPage() {
             {/* Description Details Block (Right Column) */}
             <div className="col-md-6 pdp-v4-details-block">
               <h1 className="pdp-v4-product-title">{productEntity.name}</h1>
-              <div className="pdp-v4-product-price">{productEntity.price}</div>
+              <div className="pdp-v4-product-price">
+                {productData.displayPrice === false ? null : productData.discountPrice ? (
+                  <div className="price-with-discount">
+                    <div className="price-line-1">
+                      <span className="product-discount-price">₹{productData.discountPrice}</span>
+                      <span className="product-discount-percentage">(-{productData.discountPercentage}% OFF)</span>
+                    </div>
+                    <div className="price-line-2">
+                      <span className="product-mrp-label">MRP:</span>
+                      <span className="product-mrp-strikethrough">₹{productData.productMrp}</span>
+                    </div>
+                  </div>
+                ) : productData.productMrp ? (
+                  <span className="product-mrp-only">₹{productData.productMrp}</span>
+                ) : (
+                  productEntity.price
+                )}
+              </div>
 
               <hr className="pdp-v4-divider" />
 
@@ -293,7 +428,7 @@ export default function ProductPage() {
                     Enquire Now
                   </button>
                   <a
-                    href={`https://wa.me/${MOCK_COMPANY_INFO.phone.replace(/[^0-9]/g, "")}`}
+                    href={`https://wa.me/${companyInfo?.phone?.replace(/[^0-9]/g, "") || ''}`}
                     target="_blank"
                     rel="noreferrer"
                     className="pdp-v4-action-btn pdp-v4-btn-whatsapp"
@@ -316,46 +451,29 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {MOCK_COMPANY_INFO.name}
+                      {companyInfo?.name || company || "Company"}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
-                      {MOCK_COMPANY_INFO.address}
+                      {companyInfo?.address || "Address not available"}
                     </p>
                   </div>
                   <div className="pdp-v4-company-stars-summary">
                     <span className="pdp-v4-stars-badge">
-                      {MOCK_COMPANY_INFO.rating} ★
+                      {companyInfo?.rating || "0.0"} ★
                     </span>
                     <span className="pdp-v4-stars-label">
-                      ({MOCK_COMPANY_INFO.totalReviews} Reviews)
+                      ({companyInfo?.reviewCount || 0} Reviews)
                     </span>
                   </div>
                 </div>
 
                 <div className="pdp-v4-company-embedded-action-dock">
                   <a
-                    href={`tel:${MOCK_COMPANY_INFO.phone}`}
+                    href={`tel:${companyInfo?.phone || ''}`}
                     className="pdp-v4-action-btn pdp-v4-btn-phone"
                   >
-                    <i className="fas fa-phone-alt"></i> {MOCK_COMPANY_INFO.phone}
+                    <i className="fas fa-phone-alt"></i> {companyInfo?.phone || "Phone not available"}
                   </a>
-                  {/* <button
-                    type="button"
-                    className="pdp-v4-action-btn pdp-v4-btn-enquire"
-                    onClick={() =>
-                      alert("Requirement enquiry transmission opened.")
-                    }
-                  >
-                    Enquire
-                  </button>
-                  <a
-                    href={`https://wa.me/${MOCK_COMPANY_INFO.phone.replace(/[^0-9]/g, "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="pdp-v4-action-btn pdp-v4-btn-whatsapp"
-                  >
-                    <i className="fab fa-whatsapp"></i> WhatsApp
-                  </a> */}
                 </div>
               </div>
             </div>
@@ -365,7 +483,7 @@ export default function ProductPage() {
         {/* ── SECTION 2: SIMILAR PRODUCTS GRID (MATCHING COMPANYPAGE STRUCTURE) ── */}
         <ImageCardXFlow
           cardTitle={"Similar Product"}
-          DATAS={SIMILAR_PRODUCTS.products}
+          DATAS={similarProducts}
           onCardClick={handleProductNavigation}
         />
 

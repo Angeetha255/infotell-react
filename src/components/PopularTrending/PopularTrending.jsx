@@ -1,35 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setActiveTab } from "../../store/store";
+import { apiService } from "../../services/api";
 import "./PopularTrending.css";
-
-const CATEGORIES = {
-  accommodation: [
-    "AC Lodging Services",
-    "Beach Resorts",
-    "Bungalows On Hire",
-    "Cottages On Hire",
-    "Dharamshalas",
-    "Farm House",
-    "Guest House",
-    "Hostels",
-    "Hotels",
-    "Villas",
-    "Paying Guest Accommodations",
-    "Resorts",
-  ],
-  astrology: [
-    "Astrologers",
-    "Horoscope Reading",
-    "Vastu Consultants",
-    "Palmistry Experts",
-  ],
-  automobile: ["Car Repair", "Bike Showrooms", "Tyre Dealers", "Car Washing"],
-  beauty: ["Beauty Parlours", "Gyms", "Yoga Centers", "Spas"],
-  business: ["CA Services", "Lawyers", "Consultants"],
-  education: ["Colleges", "Coaching Centers", "Online Courses"],
-  events: ["Wedding Planners", "Caterers", "Photographers"],
-};
 
 const TAB_LABELS = {
   accommodation: "Accommodation",
@@ -41,20 +14,38 @@ const TAB_LABELS = {
   events: "Events & Weddings",
 };
 
-const TRENDING = [
-  "English Medium Schools",
-  "Packers And Movers",
-  "Home Delivery Restaurants",
-  "Wedding Photographers",
-  "Income Tax Consultants",
-  "Bitcoin Services",
-  "Tour Packages For Goa",
-  "Courier Services For USA",
-];
-
 export default function PopularTrending() {
   const dispatch = useDispatch();
   const activeTab = useSelector((s) => s.ui.activeTab);
+  const [categories, setCategories] = useState({});
+  const [trendingSearches, setTrendingSearches] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Trending categories endpoint not available - set empty
+        setCategories({});
+
+        // Fetch trending searches from API
+        const trendingResponse = await apiService.trending.getSearches();
+        if (trendingResponse.data) {
+          setTrendingSearches(trendingResponse.data);
+        } else {
+          setTrendingSearches([]);
+        }
+      } catch (error) {
+        console.error("Error fetching trending data:", error);
+        setCategories({});
+        setTrendingSearches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <div className="directory-container">
@@ -73,35 +64,47 @@ export default function PopularTrending() {
           ))}
         </div>
 
-        {Object.entries(CATEGORIES).map(([key, items]) => (
-          <div
-            key={key}
-            className={`links-content${activeTab === key ? " active" : ""}`}
-            id={key}
-          >
-            <p>
-              {items.map((item, i) => (
-                <React.Fragment key={item}>
-                  <a href="#">{item}</a>
-                  {i < items.length - 1 && " | "}
-                </React.Fragment>
-              ))}
-            </p>
-          </div>
-        ))}
+        {loading ? (
+          <div className="links-content active">Loading categories...</div>
+        ) : Object.keys(categories).length > 0 ? (
+          Object.entries(categories).map(([key, items]) => (
+            <div
+              key={key}
+              className={`links-content${activeTab === key ? " active" : ""}`}
+              id={key}
+            >
+              <p>
+                {items.map((item, i) => (
+                  <React.Fragment key={item}>
+                    <a href="#">{item}</a>
+                    {i < items.length - 1 && " | "}
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
+          ))
+        ) : (
+          <div className="links-content active">No categories available</div>
+        )}
       </section>
 
       <section className="container trending-searches">
         <h2 className="section-heading">Trending Searches</h2>
         <div className="trending-searches-links-content">
-          <p>
-            {TRENDING.map((item, i) => (
-              <React.Fragment key={item}>
-                <a href="#">{item}</a>
-                {i < TRENDING.length - 1 && " | "}
-              </React.Fragment>
-            ))}
-          </p>
+          {loading ? (
+            <p>Loading trending searches...</p>
+          ) : trendingSearches.length > 0 ? (
+            <p>
+              {trendingSearches.map((item, i) => (
+                <React.Fragment key={item}>
+                  <a href="#">{item}</a>
+                  {i < trendingSearches.length - 1 && " | "}
+                </React.Fragment>
+              ))}
+            </p>
+          ) : (
+            <p>No trending searches available</p>
+          )}
         </div>
       </section>
     </div>

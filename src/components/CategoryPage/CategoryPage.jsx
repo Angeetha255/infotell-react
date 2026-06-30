@@ -1,114 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { apiService } from "../../services/api";
 import "./CategoryPage.css";
-
-// ── BACKEND DATA MODELS ──
-const BACKEND_BANNERS = [
-  {
-    src: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80",
-    alt: "Software Engineering Services",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
-    alt: "Innovative Tech Space",
-  },
-];
-
-const BACKEND_LISTINGS = [
-  {
-    id: 1,
-    name: "Gv Solutions",
-    rating: 5.0,
-    ratingCount: 6,
-    topTag: "Top Search",
-    location: "Madurai Main",
-    distance: 1.2,
-    popularity: 98,
-    years: "12 Years in Business",
-    tags: ["Software Companies", "Online Websites"],
-    phone: "08460506156",
-    img: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: true,
-  },
-  {
-    id: 2,
-    name: "TechNest Systems",
-    rating: 4.8,
-    ratingCount: 14,
-    topTag: "JD Verified",
-    location: "Anna Nagar, Madurai",
-    distance: 3.5,
-    popularity: 85,
-    years: "8 Years in Business",
-    tags: ["Mobile Apps", "Web Design"],
-    phone: "09876543210",
-    img: "https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: false,
-  },
-  {
-    id: 3,
-    name: "PixelForge Studio",
-    rating: 4.5,
-    ratingCount: 9,
-    topTag: null,
-    location: "KK Nagar, Madurai",
-    distance: 0.8,
-    popularity: 72,
-    years: "5 Years in Business",
-    tags: ["UI/UX Design", "Branding"],
-    phone: "07890123456",
-    img: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=400",
-    isVerified: false,
-    isTrust: true,
-  },
-  {
-    id: 4,
-    name: "Apex Digital Systems",
-    rating: 4.2,
-    ratingCount: 22,
-    topTag: "Popular",
-    location: "Simmakkal, Madurai",
-    distance: 4.1,
-    popularity: 91,
-    years: "10 Years in Business",
-    tags: ["Cloud Computing", "ERP Software"],
-    phone: "09441234567",
-    img: "https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=400",
-    isVerified: true,
-    isTrust: true,
-  },
-];
-
-const BACKEND_RELATED_CATEGORIES = [
-  { id: "rel-1", name: "Web Designers in Madurai", count: "142 options" },
-  { id: "rel-2", name: "Mobile App Developers", count: "98 options" },
-  { id: "rel-3", name: "Digital Marketing Agencies", count: "210 options" },
-];
-
-const BACKEND_KEYWORDS = [
-  "Custom ERP",
-  "SaaS Solutions",
-  "React Developers",
-  "Madurai IT Hub",
-  "E-Commerce Build",
-  "Cloud Hosting",
-  "UI/UX Audits",
-  "SEO Strategy",
-];
-
-const BACKEND_ADS = [
-  {
-    id: "ad-pos-1",
-    insertAfterIndex: 1,
-    title: "Upgrade to Premium Enterprise Cloud Storage",
-    content:
-      "Get 2TB high-speed redundant storage for your agency. 50% discount for local Madurai enterprises this month.",
-    img: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=400",
-    cta: "Claim Offer",
-  },
-];
 
 // ── LAZY-LOAD VIEWPORT WRAPPER COMPONENT ──
 function LazyViewElement({ children, onVisible }) {
@@ -212,10 +105,15 @@ export default function CategoryPage() {
 
   const [banners, setBanners] = useState([]);
   const [listings, setListings] = useState([]);
+  const [allListings, setAllListings] = useState([]);
   const [relatedCategories, setRelatedCategories] = useState([]);
   const [keywords, setKeywords] = useState([]);
   const [activeAds, setActiveAds] = useState([]);
   const [dismissedAdIds, setDismissedAdIds] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [bannersFetched, setBannersFetched] = useState(false);
+  const [listingsFetched, setListingsFetched] = useState(false);
+  const [sidebarFetched, setSidebarFetched] = useState(false);
 
   const [sortBy, setSortBy] = useState("relevance");
   const [filterVerified, setFilterVerified] = useState(true);
@@ -225,44 +123,174 @@ export default function CategoryPage() {
   // Lead form state
   const [leadForm, setLeadForm] = useState({ name: "", mobile: "", location: "" });
 
-  const triggerLazyBannerFetch = () => {
-    if (banners.length === 0) setBanners(BACKEND_BANNERS);
+  const triggerLazyBannerFetch = async () => {
+    if (banners.length === 0 && !bannersFetched) {
+      setBannersFetched(true);
+      try {
+        const response = await apiService.banners.getByCategory(query);
+        if (response.data) {
+          setBanners(response.data);
+        } else {
+          setBanners([]);
+        }
+      } catch (error) {
+        // Silently handle banner fetch errors - banners are optional
+        // Don't log 404 errors to console as endpoint may not exist
+        if (error.response?.status !== 404) {
+          console.error('Banner fetch error:', error);
+        }
+        setBanners([]);
+      }
+    }
   };
 
-  const filteredData = useMemo(() => {
-    return BACKEND_LISTINGS.filter((item) => {
-      const cleanSearchLocation = city.toLowerCase().trim();
-      const cleanSearchTag = query.toLowerCase().trim();
+  /* ── Two-step API flow for category-based company listing ──
+   *  1. Call Businesses API → find businesses whose `category` matches the query
+   *  2. Collect their `companyId` values
+   *  3. Call Companies API → get company details for those IDs
+   *  4. Display only those matching companies
+   */
+  const triggerLazyListingFetch = async () => {
+    if (allListings.length === 0 && !listingsFetched) {
+      setListingsFetched(true);
+      try {
+        setLoading(true);
 
-      const matchesLocation =
-        cleanSearchLocation === "" ||
-        item.location.toLowerCase().includes(cleanSearchLocation);
+        // Step 1: Fetch all businesses from Businesses API
+        const businessesResponse = await apiService.businesses.getAll();
+        const businessesArray = Array.isArray(businessesResponse.data)
+          ? businessesResponse.data
+          : (businessesResponse.data?.data || businessesResponse.data?.businesses || []);
 
-      const matchesTag =
-        cleanSearchTag === "" ||
-        item.tags.some((tag) => tag.toLowerCase().includes(cleanSearchTag));
+        // Step 2: Filter businesses whose `category` matches the query (case-insensitive, trimmed)
+        const normalizedQuery = query.trim().toLowerCase();
+        const matchedBusinesses = businessesArray.filter(biz => {
+          const bizCategory = (biz.category || biz.categoryName || '').trim().toLowerCase();
+          return bizCategory === normalizedQuery;
+        });
 
-      return matchesLocation && matchesTag;
-    });
-  }, [city, query]);
+        // Collect unique companyId values from matched businesses
+        const matchedCompanyIds = [...new Set(
+          matchedBusinesses
+            .map(biz => biz.companyId)
+            .filter(id => id != null)
+        )];
 
-  const triggerLazyListingFetch = () => {
-    setListings(filteredData);
+        if (matchedCompanyIds.length === 0) {
+          setAllListings([]);
+          setListings([]);
+          setLoading(false);
+          return;
+        }
+
+        // Step 3: Fetch all companies from Companies API
+        const companiesResponse = await apiService.publicCompanies.getAll();
+        const companiesArray = Array.isArray(companiesResponse.data)
+          ? companiesResponse.data
+          : (companiesResponse.data?.companies || companiesResponse.data?.data || []);
+
+        // Step 4: Filter companies whose `id` is in the matchedCompanyIds list
+        // AND whose `district` matches the selected city (case-insensitive, trimmed)
+        const normalizedCity = city.trim().toLowerCase();
+        const matchedCompanies = companiesArray.filter(company => {
+          // Must be in the matched company IDs from businesses
+          const idMatch =
+            matchedCompanyIds.includes(company.id) ||
+            matchedCompanyIds.includes(company._id) ||
+            matchedCompanyIds.includes(String(company.id)) ||
+            matchedCompanyIds.includes(String(company._id));
+
+          // Must match the selected city by district
+          const companyDistrict = (company.district || company.city || company.area || '').trim().toLowerCase();
+          const cityMatch = companyDistrict === normalizedCity;
+
+          return idMatch && cityMatch;
+        });
+
+        // Map to listing format
+        const mappedListings = matchedCompanies.map(company => ({
+          id: company.id,
+          name: company.businessName || company.name,
+          rating: company.rating || 0,
+          ratingCount: company.reviewCount || 0,
+          topTag: company.verified ? "Verified" : null,
+          location: company.address || company.area || "",
+          distance: company.distance || 0,
+          popularity: company.popularity || 0,
+          years: company.established ? `${company.established} Years in Business` : "",
+          tags: company.categories || [],
+          phone: company.mobileNumber || company.phone || "",
+          img: company.image || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
+          isVerified: company.verified || false,
+          isTrust: company.trusted || false,
+          // Store full company data for navigation
+          companyData: company,
+        }));
+
+        setAllListings(mappedListings);
+        setListings(mappedListings);
+      } catch (error) {
+        // Silently handle listing fetch errors
+        if (error.response?.status !== 404) {
+          console.error('Listing fetch error:', error);
+        }
+        setListings([]);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  const triggerLazySidebarFetch = () => {
-    if (relatedCategories.length === 0) {
-      setRelatedCategories(BACKEND_RELATED_CATEGORIES);
-      setKeywords(BACKEND_KEYWORDS);
-      setActiveAds(BACKEND_ADS);
+  const triggerLazySidebarFetch = async () => {
+    if (relatedCategories.length === 0 && !sidebarFetched) {
+      setSidebarFetched(true);
+      try {
+        // Fetch related categories from API
+        const categoriesResponse = await apiService.categories.search(query);
+        if (categoriesResponse.data) {
+          const related = categoriesResponse.data.slice(0, 5).map(cat => ({
+            id: cat.id,
+            name: `${cat.name} in ${city}`,
+            count: `${cat.businessCount || 0} options`
+          }));
+          setRelatedCategories(related);
+        } else {
+          setRelatedCategories([]);
+        }
+
+        // Fetch trending keywords from API
+        const trendingResponse = await apiService.trending.getSearches();
+        if (trendingResponse.data) {
+          setKeywords(trendingResponse.data.slice(0, 8));
+        } else {
+          setKeywords([]);
+        }
+      } catch (error) {
+        // Silently handle sidebar fetch errors
+        if (error.response?.status !== 404) {
+          console.error('Sidebar fetch error:', error);
+        }
+        setRelatedCategories([]);
+        setKeywords([]);
+      }
     }
   };
 
   useEffect(() => {
+    // Reset fetch flags AND data when city or query changes
+    setBannersFetched(false);
+    setListingsFetched(false);
+    setSidebarFetched(false);
+    // Clear existing data to force re-fetch (the lazy fetchers check for empty arrays)
+    setBanners([]);
+    setAllListings([]);
+    setListings([]);
+    setRelatedCategories([]);
+    setKeywords([]);
     triggerLazyBannerFetch();
     triggerLazyListingFetch();
     triggerLazySidebarFetch();
-  }, [city, query, filteredData]);
+  }, [city, query]);
 
   const handleDismissAd = (adId) => {
     setDismissedAdIds((prev) => [...prev, adId]);
@@ -273,10 +301,25 @@ export default function CategoryPage() {
     setLeadForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFormSubmit = () => {
-    console.log("Requirements Sent:", leadForm);
-    alert("Thank you! Your requirements have been sent.");
-    setLeadForm({ name: "", mobile: "", location: "" });
+  const handleFormSubmit = async () => {
+    try {
+      await apiService.leads.create(leadForm);
+      alert("Thank you! Your requirements have been sent.");
+      setLeadForm({ name: "", mobile: "", location: "" });
+    } catch (error) {
+      console.error("Error submitting lead:", error);
+      alert("Failed to send requirements. Please try again.");
+    }
+  };
+
+  const handleBreadcrumbClick = (path) => {
+    navigate(path);
+  };
+
+  /* ── Company card click: navigate to Company Details page ── */
+  const handleCompanyClick = (item) => {
+    const companyId = item.id || item.companyData?.id || 'details';
+    navigate(`/company/${companyId}`, { state: { companyData: item.companyData } });
   };
 
   const processedListings = useMemo(() => {
@@ -304,8 +347,30 @@ export default function CategoryPage() {
         <div className="row category-layout-row">
           <div className="col-lg-8">
             <div className="breadcrumb-nav">
-              {city} &gt; {query} &gt;
-              <span> {processedListings.length}+ Listings</span>
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick('/')}
+              >
+                Home
+              </span>
+              {' > '}
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+              >
+                {city}
+              </span>
+              {' > '}
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+              >
+                {query}
+              </span>
+              {' > '}
+              <span className="breadcrumb-current">
+                {processedListings.length}+ Listings
+              </span>
             </div>
 
             <h1 className="category-page-title">
@@ -388,15 +453,24 @@ export default function CategoryPage() {
             {/* Left Segment: Main Content Area */}
             <div className="category-main-scrollable">
               <LazyViewElement onVisible={triggerLazyListingFetch}>
-                {processedListings.length === 0 ? (
+                {loading ? (
                   <div className="empty-results-fallback">
-                    <p>No listings found matching the criteria.</p>
+                    <p>Loading listings...</p>
+                  </div>
+                ) : processedListings.length === 0 ? (
+                  <div className="empty-results-fallback">
+                    <p>No companies found</p>
                   </div>
                 ) : (
                   processedListings.flatMap((item, index) => {
                     const items = [];
                     items.push(
-                      <div key={`listing-${item.id}`} className="listing-card">
+                      <div
+                        key={`listing-${item.id}`}
+                        className="listing-card"
+                        onClick={() => handleCompanyClick(item)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="listing-img">
                           <img src={item.img} alt={item.name} />
                         </div>
@@ -437,15 +511,18 @@ export default function CategoryPage() {
                             ))}
                           </div>
                           <div className="listing-actions">
-                            <a href={`tel:${item.phone}`} className="btn-call">
+                            <a href={`tel:${item.phone}`} className="btn-call" onClick={(e) => e.stopPropagation()}>
                               <i className="fa-solid fa-phone"></i> {item.phone}
                             </a>
-                            <button className="btn-whatsapp">
+                            <button className="btn-whatsapp" onClick={(e) => e.stopPropagation()}>
                               <i className="fa-brands fa-whatsapp"></i> WhatsApp
                             </button>
                             <button
                               className="btn-price"
-                              onClick={() => navigate("/company")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCompanyClick(item);
+                              }}
                             >
                               Enquire Now
                             </button>

@@ -71,7 +71,19 @@ function Card({ dataObj, onCardClickFunc }) {
             </button>
           )}
         </div>
-        <div className="img-card-price-tag">{dataObj.price}</div>
+        <div className="img-card-price-tag">
+          {dataObj.priceFlag === false ? null : dataObj.discountPrice ? (
+            <span className="price-with-discount">
+              <span className="product-mrp-strikethrough">₹{dataObj.productMrp}</span>
+              <span className="product-discount-price">₹{dataObj.discountPrice}</span>
+              <span className="product-discount-percentage">({dataObj.discountPercentage}% OFF)</span>
+            </span>
+          ) : dataObj.productMrp ? (
+            <span className="product-mrp-only">₹{dataObj.productMrp}</span>
+          ) : (
+            dataObj.price
+          )}
+        </div>
       </div>
     </div>
   );

@@ -150,3 +150,36 @@
   font-weight: 600;
   color: #16a34a;
 }
+
+/* Price layout styles */
+.price-with-discount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.product-mrp-strikethrough {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.product-discount-price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.product-discount-percentage {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+.product-mrp-only {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #16a34a;
+}
