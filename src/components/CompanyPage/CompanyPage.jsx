@@ -5,6 +5,7 @@ import './CompanyPage.css';
 import ReviewRating from '../ReviewRating/ReviewRating';
 import ImageCardXFlow from '../ImageCardXFlow/ImageCardXFlow';
 import ShareButton from '../ShareButton/ShareButton';
+import { formatCompanyName, removeDuplicates } from '../../utils/helpers';
 
 const TABS = ['Overview', 'Photos', 'Catalogue', 'Reviews'];
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
@@ -24,6 +25,9 @@ export default function CompanyPage() {
   const [businessesLoading, setBusinessesLoading] = useState(false);
   const [businessesError, setBusinessesError] = useState(null);
   const [products, setProducts] = useState([]);
+  const [businessSubcategories, setBusinessSubcategories] = useState([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Login & Review Form States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -38,6 +42,14 @@ export default function CompanyPage() {
     }
     return `${BACKEND_BASE_URL}/uploads/${imagePath}`;
   };
+
+  // Update current time every minute for real-time open/closed status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch company data on mount
   useEffect(() => {
@@ -136,6 +148,49 @@ export default function CompanyPage() {
           setBusinessHours(null);
         } finally {
           setBusinessesLoading(false);
+        }
+
+        // Fetch business subcategories for the company
+        setSubcategoriesLoading(true);
+        try {
+          const businessesResponse = await apiService.businesses.getAll();
+          if (businessesResponse.data) {
+            const businessesArray = Array.isArray(businessesResponse.data)
+              ? businessesResponse.data
+              : (businessesResponse.data.data || businessesResponse.data.businesses || []);
+            
+            const companyId = companyData?.id || location.state?.companyData?.id || id;
+            
+            // Find all businesses belonging to this company
+            const companyBusinesses = businessesArray.filter(b => 
+              (b.companyId && String(b.companyId) === String(companyId)) ||
+              (b.businessId && String(b.businessId) === String(companyId)) ||
+              (b.id && String(b.id) === String(companyId))
+            );
+            
+            // Collect all subcategories from these businesses
+            const allSubcategories = [];
+            companyBusinesses.forEach(biz => {
+              if (biz.subcategory && typeof biz.subcategory === 'string') {
+                allSubcategories.push(biz.subcategory);
+              }
+              if (biz.subcategories && Array.isArray(biz.subcategories)) {
+                allSubcategories.push(...biz.subcategories);
+              }
+              if (biz.categoryName && typeof biz.categoryName === 'string') {
+                allSubcategories.push(biz.categoryName);
+              }
+            });
+            
+            // Remove duplicates and set state
+            const uniqueSubcategories = removeDuplicates(allSubcategories);
+            setBusinessSubcategories(uniqueSubcategories);
+          }
+        } catch (subError) {
+          console.error("Error fetching business subcategories:", subError);
+          setBusinessSubcategories([]);
+        } finally {
+          setSubcategoriesLoading(false);
         }
 
         // Fetch all products and filter by companyId
@@ -250,13 +305,13 @@ export default function CompanyPage() {
     });
   };
 
-  // Helper function to determine open status from businessHours
+  // Helper function to determine open status from businessHours using real-time
   const getOpenStatus = (hoursData) => {
     if (!hoursData || typeof hoursData !== 'object') {
       return "Business hours not available";
     }
 
-    const now = new Date();
+    const now = currentTime; // Use the real-time state
     const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const currentDayName = daysOfWeek[now.getDay()]; // e.g., "monday"
     
@@ -289,15 +344,15 @@ export default function CompanyPage() {
       return "Closed";
     }
 
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
+    const currentMinutes = now.getHours() * 60 + now.getMinutes(); // minutes since midnight
     const openMinutes = openHour * 60 + openMin;
     const closeMinutes = closeHour * 60 + closeMin;
 
-    if (currentTime >= openMinutes && currentTime < closeMinutes) {
-      return "Open Now";
+    if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
+      return "🟢 Open Now";
     }
 
-    return "Closed";
+    return "🔴 Closed Now";
   };
 
   // Map products from API to the format expected by ImageCardXFlow
@@ -370,17 +425,27 @@ export default function CompanyPage() {
               <div className="profile-header">
                 <div>
                   <h1 className="profile-name">
-                    {companyData.businessName || companyData.name}
+                    {formatCompanyName(companyData.businessName || companyData.name)}
                     {companyData.verified && <i className="fas fa-check-circle verified-badge-icon"></i>}
                   </h1>
                   <div className="profile-rating-row">
                     <span className="profile-rating-badge">{evaluatedAverageRating} ★</span>
-                    <span className="profile-rating-text">{reviews.length} Ratings Verified | Claimed Account</span>
+                    <span className="profile-rating-text">{reviews.length} Ratings Verified </span>
                   </div>
                   <div className="profile-location">
                     <i className="fas fa-map-marker-alt"></i> {companyData.area && companyData.district && companyData.state ? `${companyData.area}, ${companyData.district}, ${companyData.state}` : (companyData.address || "Address not available")} &nbsp;•&nbsp;
                     <span className="open-status">{getOpenStatus(businessHours)}</span>
                   </div>
+                  
+                  {/* Business Subcategories */}
+                  {businessSubcategories.length > 0 && (
+                    <div className="business-subcategories">
+                      <span className="subcategories-label">Keywords: </span>
+                      {businessSubcategories.map((sub, idx) => (
+                        <span key={idx} className="subcategory-chip">{sub}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button className="btn-wishlist" aria-label="Bookmark Workspace">
                   <i className="far fa-heart"></i>
@@ -399,8 +464,8 @@ export default function CompanyPage() {
                 </button>
                 <button className="btn-share">
                   <ShareButton
-                    title={companyData.businessName || companyData.name}
-                    text={`Check out this company: ${companyData.businessName || companyData.name}!`}
+                    title={formatCompanyName(companyData.businessName || companyData.name)}
+                    text={`Check out this company: ${formatCompanyName(companyData.businessName || companyData.name)}!`}
                     url={window.location.href}
                   />
                 </button>
@@ -539,7 +604,7 @@ export default function CompanyPage() {
                   <div className="sidebar-info-icon-container"><i className="fas fa-building sidebar-info-icon"></i></div>
                   <div>
                     <div className="sidebar-info-label">Business Name</div>
-                    <div className="sidebar-info-value">{companyData.businessName || companyData.name || "N/A"}</div>
+                    <div className="sidebar-info-value">{formatCompanyName(companyData.businessName || companyData.name) || "N/A"}</div>
                   </div>
                 </div>
 
@@ -548,54 +613,6 @@ export default function CompanyPage() {
                   <div>
                     <div className="sidebar-info-label">Owner Name</div>
                     <div className="sidebar-info-value">{companyData.ownerName || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-envelope sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Email</div>
-                    <div className="sidebar-info-value">{companyData.email || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-phone sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Mobile Number</div>
-                    <div className="sidebar-info-value">{companyData.mobileNumber || companyData.phone || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-calendar-alt sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Year of Establishment</div>
-                    <div className="sidebar-info-value">{companyData.yearOfEstablishment || companyData.established || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-file-invoice sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">GST Number</div>
-                    <div className="sidebar-info-value">{companyData.gstNumber || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-chart-line sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Yearly Turnover</div>
-                    <div className="sidebar-info-value">{companyData.yearlyTurnover || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-users sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Number of Employees</div>
-                    <div className="sidebar-info-value">{companyData.numberOfEmployees || "N/A"}</div>
                   </div>
                 </div>
 
@@ -617,6 +634,80 @@ export default function CompanyPage() {
                   </div>
                 </div>
 
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-phone sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Mobile Number</div>
+                    <div className="sidebar-info-value">{companyData.mobileNumber || companyData.phone || "N/A"}</div>
+                  </div>
+                </div>
+
+                {companyData.telephoneNumber && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-phone-alt sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Telephone Number</div>
+                      <div className="sidebar-info-value">{companyData.telephoneNumber}</div>
+                    </div>
+                  </div>
+                )}
+
+                {companyData.additionalMobileNumber && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-mobile-alt sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Additional Mobile Number</div>
+                      <div className="sidebar-info-value">{companyData.additionalMobileNumber}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-envelope sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Email</div>
+                    <div className="sidebar-info-value">{companyData.email || "N/A"}</div>
+                  </div>
+                </div>
+
+                
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-calendar-alt sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Year of Establishment</div>
+                    <div className="sidebar-info-value">{companyData.yearOfEstablishment || companyData.established || "N/A"}</div>
+                  </div>
+                </div>
+
+                
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-chart-line sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Yearly Turnover</div>
+                    <div className="sidebar-info-value">{companyData.yearlyTurnover || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-users sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">Number of Employees</div>
+                    <div className="sidebar-info-value">{companyData.numberOfEmployees || "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="sidebar-info-row">
+                  <div className="sidebar-info-icon-container"><i className="fas fa-file-invoice sidebar-info-icon"></i></div>
+                  <div>
+                    <div className="sidebar-info-label">GST Number</div>
+                    <div className="sidebar-info-value">{companyData.gstNumber || "N/A"}</div>
+                  </div>
+                </div>
+
+
+                
+
                 {companyData.mapLink && (
                   <div className="sidebar-info-row">
                     <div className="sidebar-info-icon-container"><i className="fas fa-directions sidebar-info-icon"></i></div>
@@ -633,7 +724,7 @@ export default function CompanyPage() {
               </div>
 
               {/* Box Segment 2: Relevant Categories Layout */}
-              <div className="company-sidebar-card">
+              {/* <div className="company-sidebar-card">
                 <h4 className="company-sidebar-title">Relevant Categories</h4>
                 <div className="sidebar-vertical-navigation-links">
                   {companyData.relatedCategories && companyData.relatedCategories.length > 0 ? (
@@ -647,15 +738,29 @@ export default function CompanyPage() {
                     <p>No related categories available</p>
                   )}
                 </div>
-              </div>
+              </div> */}
 
               {/* Box Segment 3: Relevant Keywords Widget Section */}
               <div className="company-sidebar-card">
                 <h4 className="company-sidebar-title">Relevant Keywords</h4>
                 <div className="sidebar-keywords-flex-matrix-dock">
-                  {companyData.relatedKeywords && companyData.relatedKeywords.length > 0 ? (
+                  {businessSubcategories.length > 0 ? (
+                    businessSubcategories.map((keyword, i) => (
+                      <span 
+                        key={i} 
+                        className="sidebar-keyword-pill-tag-node" 
+                        onClick={() => navigate(`/category/${encodeURIComponent(companyData?.district || 'Madurai')}/${encodeURIComponent(keyword)}`)}
+                      >
+                        #{keyword}
+                      </span>
+                    ))
+                  ) : companyData.relatedKeywords && companyData.relatedKeywords.length > 0 ? (
                     companyData.relatedKeywords.map((keyword, i) => (
-                      <span key={i} className="sidebar-keyword-pill-tag-node" onClick={() => alert(`Executing automated directory index database fetch for keyword token: #${keyword}`)}>
+                      <span 
+                        key={i} 
+                        className="sidebar-keyword-pill-tag-node" 
+                        onClick={() => navigate(`/category/${encodeURIComponent(companyData?.district || 'Madurai')}/${encodeURIComponent(keyword)}`)}
+                      >
                         #{keyword}
                       </span>
                     ))

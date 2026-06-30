@@ -4,6 +4,7 @@ import PopularTrending from '../PopularTrending/PopularTrending';
 import FloatingDust from '../Effects/Canvas/FloatingDust';
 import { apiService } from '../../services/api';
 import './HomePage.css';
+import { formatCompanyName } from '../../utils/helpers';
 
 /* ── Helper: get currently selected city from Header dropdown ── */
 function getSelectedCity() {
@@ -75,14 +76,14 @@ export default function HomePage() {
         if (categoriesArray.length > 0) {
           const featured = categoriesArray.slice(0, 4).map(cat => ({
             src: cat.image || cat.icon || './img/product-images/entertenment.png',
-            label: cat.name || cat.categoryName || cat.title,
+            label: formatCompanyName(cat.name || cat.categoryName || cat.title),
             cls: 'bg-entertainment'
           }));
           setHeroCategories(featured);
 
           const allCats = categoriesArray.map(cat => ({
             src: cat.icon || cat.image || './img/icon/restaurants.png',
-            label: cat.name || cat.categoryName || cat.title
+            label: formatCompanyName(cat.name || cat.categoryName || cat.title)
           }));
           setDialCategories(allCats);
 
@@ -91,14 +92,14 @@ export default function HomePage() {
               title: 'Beauty & Spa',
               items: categoriesArray.slice(0, 3).map(cat => ({
                 src: cat.image || cat.icon || './img/product-images/beauty-parlours.webp',
-                label: cat.name || cat.categoryName || cat.title
+                label: formatCompanyName(cat.name || cat.categoryName || cat.title)
               }))
             },
             {
               title: 'Event Management',
               items: categoriesArray.slice(3, 6).map(cat => ({
                 src: cat.image || cat.icon || './img/product-images/wedding-hall.avif',
-                label: cat.name || cat.categoryName || cat.title
+                label: formatCompanyName(cat.name || cat.categoryName || cat.title)
               }))
             },
           ];

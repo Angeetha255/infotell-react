@@ -11,7 +11,7 @@
 /* ── Banner Container (Dock Element Removed) ── */
 .category-banner {
   position: relative;
-  height: 220px;
+  height: 120px;
   overflow: hidden;
   background: #0f172a;
 }
@@ -251,6 +251,48 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 700;
+}
+
+/* Company Badges */
+.company-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.badge-verified {
+  background: #04793d;
+  color: #ffffff;
+ 
+}
+
+.badge-trusted {
+  background: #0a74ff;
+  color: #ffffff;
+ 
+}
+
+.badge-quick-response {
+  background: #f7c80f;
+  color: #ffffff;
+ 
+}
+
+.badge-top-rated {
+  background: #86185d;
+  color: #ffffff;
+ 
 }
 
 .listing-meta {

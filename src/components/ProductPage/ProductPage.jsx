@@ -5,6 +5,7 @@ import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
 import ImageCardXFlow from "../ImageCardXFlow/ImageCardXFlow";
 import ShareButton from "../ShareButton/ShareButton";
+import { formatCompanyName } from "../../utils/helpers";
 
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
 const BACKEND_BASE_URL = 'http://localhost:5006';
@@ -174,7 +175,7 @@ export default function ProductPage() {
                 const actualCompanyId = businessData.companyId || businessData.company_id || '';
                 
                 // Update breadcrumb company name from business data (fallback)
-                const businessName = businessData.businessName || businessData.name || breadcrumbCompanyName;
+                const businessName = formatCompanyName(businessData.businessName || businessData.name || breadcrumbCompanyName);
                 setBreadcrumbCompanyName(businessName);
 
                 // Store full business-level info as fallback
@@ -208,7 +209,7 @@ export default function ProductPage() {
                     if (companyResponse.data) {
                       const companyData = companyResponse.data.company || companyResponse.data;
                       
-                      const resolvedName = companyData.businessName || companyData.name || businessName;
+                      const resolvedName = formatCompanyName(companyData.businessName || companyData.name || businessName);
                       const resolvedAddress = [companyData.area, companyData.district, companyData.state]
                         .filter(Boolean)
                         .join(', ') || companyData.address || businessData.address || "Address not available";
@@ -442,7 +443,7 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {companyInfo?.name || breadcrumbCompanyName || "Company"}
+                      {formatCompanyName(companyInfo?.name || breadcrumbCompanyName || "Company")}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
                       <i className="fas fa-map-marker-alt sidebar-info-icon"></i>{companyInfo?.address || "Address not available"}
@@ -545,7 +546,7 @@ export default function ProductPage() {
                 <div className="pdp-v4-company-embedded-header">
                   <div>
                     <h4 className="pdp-v4-company-title-text">
-                      {companyInfo?.name || breadcrumbCompanyName || "Company"}
+                      {formatCompanyName(companyInfo?.name || breadcrumbCompanyName || "Company")}
                     </h4>
                     <p className="pdp-v4-company-location-sub">
                       {companyInfo?.address || "Address not available"}

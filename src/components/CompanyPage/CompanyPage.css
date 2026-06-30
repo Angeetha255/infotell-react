@@ -140,6 +140,37 @@
   font-weight: 700;
 }
 
+/* Business Subcategories */
+.business-subcategories {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.subcategories-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.subcategory-chip {
+  background: var(--primary-glow);
+  color: var(--secondary-dark);
+  border: 1px solid var(--secondary-dark);
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.subcategory-chip:hover {
+  background: rgba(78, 1, 5, 0.1);
+}
+
 .btn-wishlist {
   background: var(--primary-glow);
   border: 1px solid #e2e8f0;

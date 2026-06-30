@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./CategoryPage.css";
+import { formatCompanyName, removeDuplicates } from "../../utils/helpers";
 
 // ── LAZY-LOAD VIEWPORT WRAPPER COMPONENT ──
 function LazyViewElement({ children, onVisible }) {
@@ -116,8 +117,10 @@ export default function CategoryPage() {
   const [sidebarFetched, setSidebarFetched] = useState(false);
 
   const [sortBy, setSortBy] = useState("relevance");
-  const [filterVerified, setFilterVerified] = useState(true);
+  const [filterVerified, setFilterVerified] = useState(false);
   const [filterTrust, setFilterTrust] = useState(false);
+  const [filterQuickResponse, setFilterQuickResponse] = useState(false);
+  const [filterTopRated, setFilterTopRated] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Lead form state
@@ -210,10 +213,10 @@ export default function CategoryPage() {
         // Map to listing format
         const mappedListings = matchedCompanies.map(company => ({
           id: company.id,
-          name: company.businessName || company.name,
+          name: formatCompanyName(company.businessName || company.name),
           rating: company.rating || 0,
           ratingCount: company.reviewCount || 0,
-          topTag: company.verified ? "Verified" : null,
+          topTag: (company.verify || company.verified) ? "Verified" : null,
           location: company.address || company.area || "",
           distance: company.distance || 0,
           popularity: company.popularity || 0,
@@ -221,8 +224,10 @@ export default function CategoryPage() {
           tags: company.categories || [],
           phone: company.mobileNumber || company.phone || "",
           img: company.image || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
-          isVerified: company.verified || false,
-          isTrust: company.trusted || false,
+          isVerified: (company.verify === 1 || company.verified === 1 || company.verify === true || company.verified === true),
+          isTrust: (company.trust === 1 || company.trusted === 1 || company.trust === true || company.trusted === true),
+          isQuickResponse: (company.quick_response === 1 || company.quickResponse === 1 || company.quick_response === true || company.quickResponse === true),
+          isTopRated: (company.top_rated === 1 || company.topRated === 1 || company.top_rated === true || company.topRated === true),
           // Store full company data for navigation
           companyData: company,
         }));
@@ -245,25 +250,74 @@ export default function CategoryPage() {
     if (relatedCategories.length === 0 && !sidebarFetched) {
       setSidebarFetched(true);
       try {
-        // Fetch related categories from API
-        const categoriesResponse = await apiService.categories.search(query);
+        // Fetch all categories to find related ones
+        const categoriesResponse = await apiService.categories.getAll();
         if (categoriesResponse.data) {
-          const related = categoriesResponse.data.slice(0, 5).map(cat => ({
-            id: cat.id,
-            name: `${cat.name} in ${city}`,
-            count: `${cat.businessCount || 0} options`
-          }));
+          const categoriesArray = Array.isArray(categoriesResponse.data)
+            ? categoriesResponse.data
+            : (categoriesResponse.data.categories || categoriesResponse.data.data || []);
+          
+          // Find the current category
+          const currentCategory = categoriesArray.find(cat => 
+            (cat.name || cat.categoryName || '').toLowerCase() === query.toLowerCase()
+          );
+          
+          // Get related categories (same parent or siblings)
+          let related = [];
+          if (currentCategory) {
+            const parentId = currentCategory.parentId || currentCategory.categoryId;
+            if (parentId) {
+              // Get categories with same parent
+              related = categoriesArray
+                .filter(cat => 
+                  (cat.parentId === parentId || cat.categoryId === parentId) &&
+                  cat.id !== currentCategory.id
+                )
+                .slice(0, 8)
+                .map(cat => ({
+                  id: cat.id,
+                  name: `${cat.name || cat.categoryName} in ${city}`,
+                  count: `${cat.businessCount || 0} options`
+                }));
+            } else {
+              // If no parent, get other categories at same level
+              related = categoriesArray
+                .filter(cat => cat.id !== currentCategory.id)
+                .slice(0, 8)
+                .map(cat => ({
+                  id: cat.id,
+                  name: `${cat.name || cat.categoryName} in ${city}`,
+                  count: `${cat.businessCount || 0} options`
+                }));
+            }
+          }
+          
           setRelatedCategories(related);
         } else {
           setRelatedCategories([]);
         }
 
-        // Fetch trending keywords from API
-        const trendingResponse = await apiService.trending.getSearches();
-        if (trendingResponse.data) {
-          setKeywords(trendingResponse.data.slice(0, 8));
+        // Fetch subcategories for the current category as related keywords
+        const subcategoriesResponse = await apiService.categories.getByParent(query);
+        if (subcategoriesResponse.data) {
+          const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
+            ? subcategoriesResponse.data
+            : (subcategoriesResponse.data.subcategories || subcategoriesResponse.data.data || []);
+          
+          const subcategoryNames = subcategoriesArray
+            .map(sub => sub.name || sub.subcategoryName || sub.categoryName)
+            .filter(name => name);
+          
+          const uniqueKeywords = removeDuplicates(subcategoryNames);
+          setKeywords(uniqueKeywords.slice(0, 10));
         } else {
-          setKeywords([]);
+          // Fallback to trending searches if subcategories not available
+          const trendingResponse = await apiService.trending.getSearches();
+          if (trendingResponse.data) {
+            setKeywords(trendingResponse.data.slice(0, 8));
+          } else {
+            setKeywords([]);
+          }
         }
       } catch (error) {
         // Silently handle sidebar fetch errors
@@ -326,6 +380,8 @@ export default function CategoryPage() {
     let output = [...listings];
     if (filterVerified) output = output.filter((item) => item.isVerified);
     if (filterTrust) output = output.filter((item) => item.isTrust);
+    if (filterQuickResponse) output = output.filter((item) => item.isQuickResponse);
+    if (filterTopRated) output = output.filter((item) => item.isTopRated);
 
     if (sortBy === "rating") output.sort((a, b) => b.rating - a.rating);
     else if (sortBy === "popular") output.sort((a, b) => b.popularity - a.popularity);
@@ -333,7 +389,7 @@ export default function CategoryPage() {
     else output.sort((a, b) => b.id - a.id);
 
     return output;
-  }, [listings, filterVerified, filterTrust, sortBy]);
+  }, [listings, filterVerified, filterTrust, filterQuickResponse, filterTopRated, sortBy]);
 
   return (
     <div className="category-page">
@@ -448,6 +504,20 @@ export default function CategoryPage() {
               >
                 {filterTrust && <i className="fa fa-check-circle"></i>} Trust
               </button>
+
+              <button
+                className={`filter-chip ${filterQuickResponse ? "active-chip" : ""}`}
+                onClick={() => setFilterQuickResponse(!filterQuickResponse)}
+              >
+                {filterQuickResponse && <i className="fa fa-check-circle"></i>} Quick Response
+              </button>
+
+              <button
+                className={`filter-chip ${filterTopRated ? "active-chip" : ""}`}
+                onClick={() => setFilterTopRated(!filterTopRated)}
+              >
+                {filterTopRated && <i className="fa fa-check-circle"></i>} Top Rated
+              </button>
             </div>
 
             {/* Left Segment: Main Content Area */}
@@ -492,6 +562,22 @@ export default function CategoryPage() {
                             <span className="proximity-geo-tag">
                               {item.distance} km
                             </span>
+                          </div>
+                          
+                          {/* Company Badges */}
+                          <div className="company-badges">
+                            {item.isVerified && (
+                              <span className="badge badge-verified">✅ Verified</span>
+                            )}
+                            {item.isTrust && (
+                              <span className="badge badge-trusted">🛡 Trusted</span>
+                            )}
+                            {item.isQuickResponse && (
+                              <span className="badge badge-quick-response">⚡ Quick Response</span>
+                            )}
+                            {item.isTopRated && (
+                              <span className="badge badge-top-rated">⭐ Top Rated</span>
+                            )}
                           </div>
                           <div className="listing-meta">
                             <span>
@@ -556,8 +642,8 @@ export default function CategoryPage() {
           <div className="col-lg-4 category-sidebar-fixed">
             <LazyViewElement onVisible={triggerLazySidebarFetch}>
               <div className="sidebar-sticky-enclosure">
-                {/* Lead Form */}
-                <div className="sidebar-card">
+                 
+                {/* <div className="sidebar-card">
                   <h3 className="sidebar-title">Get List of Top Companies</h3>
                   <p className="sidebar-subtitle">
                     Verified options sent instantly.
@@ -589,24 +675,31 @@ export default function CategoryPage() {
                   <button className="sidebar-submit" onClick={handleFormSubmit}>
                     Send Requirements
                   </button>
-                </div>
+                </div> */} 
 
                 {/* Related Categories */}
                 <div className="related-categories-card-box">
                   <h3 className="sidebar-title">Related Categories</h3>
                   <div className="related-categories-vertical-stack">
-                    {relatedCategories.map((cat) => (
-                      <div
-                        key={cat.id}
-                        className="related-category-row-item"
-                        onClick={() => navigate("/category")}
-                      >
-                        <span className="related-cat-name-link">
-                          {cat.name}
-                        </span>
-                        <i className="fa-solid fa-chevron-right related-cat-arrow"></i>
-                      </div>
-                    ))}
+                    {relatedCategories.length > 0 ? (
+                      relatedCategories.map((cat) => (
+                        <div
+                          key={cat.id}
+                          className="related-category-row-item"
+                          onClick={() => {
+                            const categoryName = cat.name.replace(` in ${city}`, '').trim();
+                            navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(categoryName)}`);
+                          }}
+                        >
+                          <span className="related-cat-name-link">
+                            {cat.name}
+                          </span>
+                          <i className="fa-solid fa-chevron-right related-cat-arrow"></i>
+                        </div>
+                      ))
+                    ) : (
+                      <p>No related categories available</p>
+                    )}
                   </div>
                 </div>
 
@@ -614,15 +707,19 @@ export default function CategoryPage() {
                 <div className="related-keywords-card-box">
                   <h3 className="sidebar-title">Related Keywords</h3>
                   <div className="keywords-flex-wrap">
-                    {keywords.map((kw, i) => (
-                      <span
-                        key={i}
-                        className="keyword-pill-tag"
-                        onClick={() => navigate("/category")}
-                      >
-                        #{kw}
-                      </span>
-                    ))}
+                    {keywords.length > 0 ? (
+                      keywords.map((kw, i) => (
+                        <span
+                          key={i}
+                          className="keyword-pill-tag"
+                          onClick={() => navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(kw)}`)}
+                        >
+                          #{kw}
+                        </span>
+                      ))
+                    ) : (
+                      <p>No related keywords available</p>
+                    )}
                   </div>
                 </div>
               </div>
