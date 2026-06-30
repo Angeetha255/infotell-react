@@ -251,6 +251,10 @@ export default function CategoryPage() {
     }
   };
 
+  const handleBreadcrumbClick = (path) => {
+    navigate(path);
+  };
+
   const processedListings = useMemo(() => {
     let output = [...listings];
     if (filterVerified) output = output.filter((item) => item.isVerified);
@@ -276,8 +280,30 @@ export default function CategoryPage() {
         <div className="row category-layout-row">
           <div className="col-lg-8">
             <div className="breadcrumb-nav">
-              {city} &gt; {query} &gt;
-              <span> {processedListings.length}+ Listings</span>
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick('/')}
+              >
+                Home
+              </span>
+              {' > '}
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+              >
+                {city}
+              </span>
+              {' > '}
+              <span 
+                className="breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/category?city=${city}&query=${query}`)}
+              >
+                {query}
+              </span>
+              {' > '}
+              <span className="breadcrumb-current">
+                {processedListings.length}+ Listings
+              </span>
             </div>
 
             <h1 className="category-page-title">

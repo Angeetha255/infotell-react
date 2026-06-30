@@ -160,6 +160,9 @@ export default function Header() {
     setIsMobileModalOpen(false);
 
     if (city !== undefined && text !== undefined && text.trim() !== "") {
+      // Autofill the search input with the selected company name
+      setQuery(text.trim());
+
       if (companyData) {
         // Navigate to company page with company data
         const companyId = companyData.id || companyData._id || 'details';

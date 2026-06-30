@@ -91,6 +91,20 @@ export default function ProductPage() {
     }
   };
 
+  // Navigate to previous image
+  const handlePreviousImage = () => {
+    if (selectedImgIdx > 0) {
+      setSelectedImgIdx(selectedImgIdx - 1);
+    }
+  };
+
+  // Navigate to next image
+  const handleNextImage = () => {
+    if (productEntity.media && selectedImgIdx < productEntity.media.length - 1) {
+      setSelectedImgIdx(selectedImgIdx + 1);
+    }
+  };
+
   // Fetch product data on mount
   useEffect(() => {
     const fetchProductData = async () => {
@@ -206,6 +220,10 @@ export default function ProductPage() {
     navigate(`/product?city=${city || 'Madurai'}&company=${company || 'Company'}&product=${productId}`);
   };
 
+  const handleBreadcrumbClick = (path) => {
+    navigate(path);
+  };
+
   if (loading) {
     return <div className="pdp-v4-root-wrapper"><div className="container"><p>Loading product details...</p></div></div>;
   }
@@ -216,13 +234,23 @@ export default function ProductPage() {
 
   const displayPrice = productData.discountPrice || productData.productMrp || productData.price || '';
 
+  // Helper function to convert text to Title Case
+  const toTitleCase = (text) => {
+    if (!text || typeof text !== 'string') return '';
+    return text
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   // Map API specifications [{name, detail}] to specs [{label, value}]
   const mapSpecs = (specs) => {
     if (!specs) return [];
     if (Array.isArray(specs) && specs.length > 0) {
       return specs.map(s => ({
-        label: s.name || s.label || '',
-        value: s.detail || s.value || ''
+        label: toTitleCase(s.name || s.label || ''),
+        value: toTitleCase(s.detail || s.value || '')
       }));
     }
     return [];
@@ -240,8 +268,27 @@ export default function ProductPage() {
     <div className="pdp-v4-root-wrapper">
       <div className="container pdp-v4-main-container">
         <div className="pdp-v4-breadcrumb-trail">
-          {city || "Madurai"} {'>'} {company || "Gv Solutions"} {'>'} Products
-          {'>'}{" "}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            {city || "Madurai"}
+          </span>
+          {' > '}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            {company || "Company"}
+          </span>
+          {' > '}
+          <span 
+            className="pdp-v4-breadcrumb-item"
+            onClick={() => handleBreadcrumbClick(`/category?city=${city || 'Madurai'}&query=${company || 'Company'}`)}
+          >
+            Products
+          </span>
+          {' > '}
           <span className="pdp-v4-breadcrumb-current">
             {productEntity.name}
           </span>
@@ -264,8 +311,9 @@ export default function ProductPage() {
               <div className="pdp-v4-slider-controls-row">
                 <button
                   type="button"
-                  className="pdp-v4-slider-arrow"
-                  onClick={() => handleScrollThumbnails("left")}
+                  className={`pdp-v4-slider-arrow ${selectedImgIdx === 0 || productEntity.media.length <= 1 ? 'pdp-v4-arrow-hidden' : ''}`}
+                  onClick={handlePreviousImage}
+                  disabled={selectedImgIdx === 0 || productEntity.media.length <= 1}
                 >
                   <i className="fas fa-chevron-left"></i>
                 </button>
@@ -287,8 +335,9 @@ export default function ProductPage() {
 
                 <button
                   type="button"
-                  className="pdp-v4-slider-arrow"
-                  onClick={() => handleScrollThumbnails("right")}
+                  className={`pdp-v4-slider-arrow ${selectedImgIdx === productEntity.media.length - 1 || productEntity.media.length <= 1 ? 'pdp-v4-arrow-hidden' : ''}`}
+                  onClick={handleNextImage}
+                  disabled={selectedImgIdx === productEntity.media.length - 1 || productEntity.media.length <= 1}
                 >
                   <i className="fas fa-chevron-right"></i>
                 </button>
@@ -331,11 +380,16 @@ export default function ProductPage() {
               <h1 className="pdp-v4-product-title">{productEntity.name}</h1>
               <div className="pdp-v4-product-price">
                 {productData.displayPrice === false ? null : productData.discountPrice ? (
-                  <span className="price-with-discount">
-                    <span className="product-mrp-strikethrough">₹{productData.productMrp}</span>
-                    <span className="product-discount-price">₹{productData.discountPrice}</span>
-                    <span className="product-discount-percentage">({productData.discountPercentage}% OFF)</span>
-                  </span>
+                  <div className="price-with-discount">
+                    <div className="price-line-1">
+                      <span className="product-discount-price">₹{productData.discountPrice}</span>
+                      <span className="product-discount-percentage">(-{productData.discountPercentage}% OFF)</span>
+                    </div>
+                    <div className="price-line-2">
+                      <span className="product-mrp-label">MRP:</span>
+                      <span className="product-mrp-strikethrough">₹{productData.productMrp}</span>
+                    </div>
+                  </div>
                 ) : productData.productMrp ? (
                   <span className="product-mrp-only">₹{productData.productMrp}</span>
                 ) : (

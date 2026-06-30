@@ -593,42 +593,20 @@ export default function CompanyPage() {
                 </div>
 
                 <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-globe sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Country</div>
-                    <div className="sidebar-info-value">{companyData.country || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-map sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">State</div>
-                    <div className="sidebar-info-value">{companyData.state || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
                   <div className="sidebar-info-icon-container"><i className="fas fa-map-marker-alt sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">District</div>
-                    <div className="sidebar-info-value">{companyData.district || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-location-dot sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Area</div>
-                    <div className="sidebar-info-value">{companyData.area || "N/A"}</div>
-                  </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-mailbox sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Pincode</div>
-                    <div className="sidebar-info-value">{companyData.pincode || "N/A"}</div>
+                  <div className="sidebar-info-value-full">
+                    <div className="sidebar-info-label">Address</div>
+                    <div className="address-single-row">
+                      <span className="address-field">{companyData.country || "N/A"}</span>
+                      <span className="address-separator">,</span>
+                      <span className="address-field">{companyData.state || "N/A"}</span>
+                      <span className="address-separator">,</span>
+                      <span className="address-field">{companyData.district || "N/A"}</span>
+                      <span className="address-separator">,</span>
+                      <span className="address-field">{companyData.area || "N/A"}</span>
+                      <span className="address-separator">,</span>
+                      <span className="address-field">{companyData.pincode || "N/A"}</span>
+                    </div>
                   </div>
                 </div>
 

@@ -36,6 +36,25 @@
 /* ── Typography & Global Color Directives ── */
 .breadcrumb-nav{
   color: var(--text-secondary);
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+}
+
+.breadcrumb-item {
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.breadcrumb-item:hover {
+  color: var(--secondary-dark);
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: var(--secondary-dark);
+  font-weight: 700;
+  cursor: default;
 }
 .category-page-title {
   font-size: 1.75rem;
