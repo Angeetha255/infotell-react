@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./CategoryPage.css";
-import { formatCompanyName, removeDuplicates } from "../../utils/helpers";
+import { formatCompanyName, removeDuplicates, generateSlug, resolveSlugToName } from "../../utils/helpers";
 
 // ── LAZY-LOAD VIEWPORT WRAPPER COMPONENT ──
 function LazyViewElement({ children, onVisible }) {
@@ -98,10 +98,12 @@ function CategoryBanner({ banners }) {
 
 // ── MAIN COMPONENT ──
 export default function CategoryPage() {
-  const { city: cityParam, query: queryParam } = useParams();
-  const city = decodeURIComponent(cityParam || "");
-  const query = decodeURIComponent(queryParam || "");
+  const { city: cityParam, query: queryParam, categorySlug } = useParams();
   const location = useLocation();
+
+  // Handle both old pattern (/category/:city/:query) and new pattern (/:city/:categorySlug)
+  const city = decodeURIComponent(cityParam || "");
+  const query = decodeURIComponent(queryParam || categorySlug || "");
 
   const navigate = useNavigate();
 
@@ -149,18 +151,20 @@ export default function CategoryPage() {
   };
 
   /* ── Two-step API flow for category-based company listing ──
-   *  1. Call Businesses API → find businesses whose `category` matches the query
-   *  2. Collect their `companyId` values
-   *  3. Call Companies API → get company details for those IDs
-   *  4. Display only those matching companies
+   *  1. Resolve slug to original category name
+   *  2. Call Businesses API → find businesses whose `category` matches the resolved name
+   *  3. Collect their `companyId` values
+   *  4. Call Companies API → get company details for those IDs
+   *  5. Display only those matching companies
    *  
    *  OR for subcategory search:
-   *  1. Call Subcategories API → find subcategory matching the query
-   *  2. Get parent category ID from subcategory
-   *  3. Call Businesses API → find businesses whose `category` matches the parent category
-   *  4. Collect their `companyId` values
-   *  5. Call Companies API → get company details for those IDs
-   *  6. Display only those matching companies
+   *  1. Resolve slug to original subcategory name
+   *  2. Call Subcategories API → find subcategory matching the resolved name
+   *  3. Get parent category ID from subcategory
+   *  4. Call Businesses API → find businesses whose `category` matches the parent category
+   *  5. Collect their `companyId` values
+   *  6. Call Companies API → get company details for those IDs
+   *  7. Display only those matching companies
    */
   const triggerLazyListingFetch = async () => {
     if (allListings.length === 0 && !listingsFetched) {
@@ -168,17 +172,46 @@ export default function CategoryPage() {
       try {
         setLoading(true);
 
+        // Step 1: Resolve slug to original category/subcategory name
+        let resolvedQuery = query;
+        
+        // Fetch categories to resolve slug
+        const categoriesResponse = await apiService.categories.getAll();
+        const categoriesArray = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : (categoriesResponse.data?.categories || categoriesResponse.data?.data || []);
+        
+        const categoryNames = categoriesArray.map(cat => cat.name || cat.categoryName || '');
+        const resolvedCategory = resolveSlugToName(query, categoryNames);
+        
+        if (resolvedCategory) {
+          resolvedQuery = resolvedCategory;
+        } else {
+          // Try resolving as subcategory
+          const subcategoriesResponse = await apiService.subcategories.getAll();
+          const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
+            ? subcategoriesResponse.data
+            : (subcategoriesResponse.data?.subcategories || subcategoriesResponse.data?.data || []);
+          
+          const subcategoryNames = subcategoriesArray.map(sub => sub.name || sub.subcategoryName || '');
+          const resolvedSubcategory = resolveSlugToName(query, subcategoryNames);
+          
+          if (resolvedSubcategory) {
+            resolvedQuery = resolvedSubcategory;
+          }
+        }
+
         // Check if this is a subcategory search from navigation state
         const isSubcategorySearch = location.state?.isSubcategorySearch;
         const parentCategoryId = location.state?.parentCategoryId;
 
-        // Step 1: Check if the query is a subcategory
+        // Step 2: Check if the resolved query is a subcategory
         const subcategoriesResponse = await apiService.subcategories.getAll();
         const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
           ? subcategoriesResponse.data
           : (subcategoriesResponse.data?.subcategories || subcategoriesResponse.data?.data || []);
 
-        const normalizedQuery = query.trim().toLowerCase();
+        const normalizedQuery = resolvedQuery.trim().toLowerCase();
         let matchedSubcategory = null;
 
         // If we have parentCategoryId from state, use it to find the subcategory
@@ -192,16 +225,16 @@ export default function CategoryPage() {
                    (cleanedSubName === normalizedQuery || cleanedSubName.includes(normalizedQuery) || normalizedQuery.includes(cleanedSubName));
           });
         } else {
-          // Otherwise, search by query
+          // Otherwise, search by resolved query
           matchedSubcategory = subcategoriesArray.find(sub => {
             const subName = (sub.name || sub.subcategoryName || '').trim();
             const cleanedSubName = subName.replace(/"/g, '').toLowerCase();
-            return cleanedSubName.includes(normalizedQuery) || normalizedQuery.includes(cleanedSubName);
+            return cleanedSubName === normalizedQuery || cleanedSubName.includes(normalizedQuery) || normalizedQuery.includes(cleanedSubName);
           });
         }
 
         let matchedBusinesses = [];
-        let targetCategory = query;
+        let targetCategory = resolvedQuery;
 
         if (matchedSubcategory) {
           // If it's a subcategory, get the parent category
@@ -210,25 +243,26 @@ export default function CategoryPage() {
             try {
               const categoryResponse = await apiService.categories.getById(subParentId);
               const category = categoryResponse.data;
-              targetCategory = category.name || category.categoryName || query;
+              targetCategory = category.name || category.categoryName || resolvedQuery;
             } catch (catError) {
               console.error("Error fetching parent category:", catError);
-              targetCategory = query;
+              targetCategory = resolvedQuery;
             }
           }
         }
 
-        // Step 2: Fetch all businesses from Businesses API
+        // Step 3: Fetch all businesses from Businesses API
         const businessesResponse = await apiService.businesses.getAll();
         const businessesArray = Array.isArray(businessesResponse.data)
           ? businessesResponse.data
           : (businessesResponse.data?.data || businessesResponse.data?.businesses || []);
 
-        // Step 3: Filter businesses whose `category` matches the target category (case-insensitive, trimmed)
+        // Step 4: Filter businesses whose `category` matches the target category (case-insensitive, trimmed)
         // The category field may contain multiple categories separated by commas
         const normalizedTargetCategory = targetCategory.trim().toLowerCase();
         console.log("Target category:", normalizedTargetCategory);
         console.log("Matched subcategory:", matchedSubcategory);
+        console.log("Resolved query:", resolvedQuery);
         
         matchedBusinesses = businessesArray.filter(biz => {
           const bizCategory = (biz.category || biz.categoryName || '').trim();
@@ -489,6 +523,15 @@ export default function CategoryPage() {
     setListings([]);
     setRelatedCategories([]);
     setKeywords([]);
+    
+    // Redirect old /category URLs to new SEO-friendly URLs
+    if (location.pathname.startsWith('/category/')) {
+      const citySlug = generateSlug(city);
+      const categorySlug = generateSlug(query);
+      navigate(`/${citySlug}/${categorySlug}`, { replace: true });
+      return;
+    }
+    
     triggerLazyBannerFetch();
     triggerLazyListingFetch();
     triggerLazySidebarFetch();
@@ -521,7 +564,11 @@ export default function CategoryPage() {
   /* ── Company card click: navigate to Company Details page ── */
   const handleCompanyClick = (item) => {
     const companyId = item.id || item.companyData?.id || 'details';
-    navigate(`/company/${companyId}`, { state: { companyData: item.companyData } });
+    const companyName = item.name || item.companyData?.businessName || item.companyData?.name || '';
+    const companySlug = generateSlug(companyName);
+    
+    // Use SEO-friendly slug-based URL
+    navigate(`/${companySlug}`, { state: { companyData: item.companyData } });
   };
 
   const processedListings = useMemo(() => {
@@ -560,14 +607,14 @@ export default function CategoryPage() {
               {' > '}
               <span 
                 className="breadcrumb-item"
-                onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(city)}/${encodeURIComponent(query)}`)}
+                onClick={() => handleBreadcrumbClick(`/${generateSlug(city)}/${generateSlug(query)}`)}
               >
                 {city}
               </span>
               {' > '}
               <span 
                 className="breadcrumb-item"
-                onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(city)}/${encodeURIComponent(query)}`)}
+                onClick={() => handleBreadcrumbClick(`/${generateSlug(city)}/${generateSlug(query)}`)}
               >
                 {query}
               </span>
@@ -835,7 +882,7 @@ export default function CategoryPage() {
                           className="related-category-row-item"
                           onClick={() => {
                             const categoryName = cat.name.replace(` in ${city}`, '').trim();
-                            navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(categoryName)}`);
+                            navigate(`/${generateSlug(city)}/${generateSlug(categoryName)}`);
                           }}
                         >
                           <span className="related-cat-name-link">
@@ -859,7 +906,7 @@ export default function CategoryPage() {
                         <span
                           key={i}
                           className="keyword-pill-tag"
-                          onClick={() => navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(kw)}`)}
+                          onClick={() => navigate(`/${generateSlug(city)}/${generateSlug(kw)}`)}
                         >
                           #{kw}
                         </span>

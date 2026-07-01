@@ -5,7 +5,7 @@ import './CompanyPage.css';
 import ReviewRating from '../ReviewRating/ReviewRating';
 import ImageCardXFlow from '../ImageCardXFlow/ImageCardXFlow';
 import ShareButton from '../ShareButton/ShareButton';
-import { formatCompanyName, removeDuplicates } from '../../utils/helpers';
+import { formatCompanyName, removeDuplicates, generateSlug } from '../../utils/helpers';
 
 const TABS = ['Overview', 'Photos', 'Catalogue', 'Reviews'];
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
@@ -13,7 +13,7 @@ const BACKEND_BASE_URL = 'http://localhost:5006';
 
 export default function CompanyPage() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id, slug } = useParams();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('Overview');
   const [companyData, setCompanyData] = useState(null);
@@ -57,10 +57,31 @@ export default function CompanyPage() {
       setLoading(true);
       let resolvedCompanyId = null;
       try {
+        // Redirect old /company URLs to new SEO-friendly URLs
+        if (location.pathname.startsWith('/company/') && id) {
+          // Fetch company data to get the name for slug
+          const response = await apiService.publicCompanies.getById(id);
+          if (response.data) {
+            const companyName = response.data.businessName || response.data.name || '';
+            const companySlug = generateSlug(companyName);
+            navigate(`/${companySlug}`, { replace: true, state: { companyData: response.data } });
+            return;
+          }
+        }
+
         // Check if company data is passed via navigation state
         if (location.state?.companyData) {
           setCompanyData(location.state.companyData);
-          resolvedCompanyId = location.state.companyData.id || id;
+          resolvedCompanyId = location.state.companyData.id || id || slug;
+          
+          // If slug is provided but doesn't match, redirect to slug-based URL
+          if (slug && location.state.companyData) {
+            const expectedSlug = generateSlug(location.state.companyData.businessName || location.state.companyData.name);
+            if (expectedSlug !== slug) {
+              navigate(`/${expectedSlug}`, { replace: true, state: { companyData: location.state.companyData } });
+              return;
+            }
+          }
           
           // Fetch reviews for this company
           try {
@@ -80,28 +101,52 @@ export default function CompanyPage() {
             setReviews([]);
           }
         } else {
-          // Fetch from Public Companies API using ID
-          const response = await apiService.publicCompanies.getById(id);
-          if (response.data) {
-            setCompanyData(response.data);
-            resolvedCompanyId = response.data.id || id;
+          // If slug is provided, resolve it to company ID
+          if (slug && !id) {
+            const companiesResponse = await apiService.publicCompanies.getAll();
+            const companiesArray = Array.isArray(companiesResponse.data)
+              ? companiesResponse.data
+              : (companiesResponse.data?.companies || companiesResponse.data?.data || []);
 
-            // Fetch reviews for this company
-            try {
-              const reviewsResponse = await apiService.reviews.getByBusiness(id);
-              if (reviewsResponse.data) {
-                const mappedReviews = reviewsResponse.data.map(r => ({
-                  id: r.id,
-                  name: r.userName,
-                  pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
-                  rating: r.rating,
-                  comment: r.comment
-                }));
-                setReviews(mappedReviews);
+            const matchedCompany = companiesArray.find(company => {
+              const companyName = company.businessName || company.name || '';
+              const companySlug = generateSlug(companyName);
+              return companySlug === slug;
+            });
+
+            if (matchedCompany) {
+              setCompanyData(matchedCompany);
+              resolvedCompanyId = matchedCompany.id;
+            } else {
+              // Company not found by slug
+              setCompanyData(null);
+              setLoading(false);
+              return;
+            }
+          } else {
+            // Fetch from Public Companies API using ID (backward compatibility)
+            const response = await apiService.publicCompanies.getById(id);
+            if (response.data) {
+              setCompanyData(response.data);
+              resolvedCompanyId = response.data.id || id;
+
+              // Fetch reviews for this company
+              try {
+                const reviewsResponse = await apiService.reviews.getByBusiness(id);
+                if (reviewsResponse.data) {
+                  const mappedReviews = reviewsResponse.data.map(r => ({
+                    id: r.id,
+                    name: r.userName,
+                    pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+                    rating: r.rating,
+                    comment: r.comment
+                  }));
+                  setReviews(mappedReviews);
+                }
+              } catch (reviewError) {
+                // Silently handle reviews fetch errors - reviews are optional
+                setReviews([]);
               }
-            } catch (reviewError) {
-              // Silently handle reviews fetch errors - reviews are optional
-              setReviews([]);
             }
           }
         }
@@ -254,10 +299,10 @@ export default function CompanyPage() {
       }
     };
 
-    if (id || location.state?.companyData) {
+    if (id || slug || location.state?.companyData) {
       fetchCompanyData();
     }
-  }, [id, location.state]);
+  }, [id, slug, location.state]);
 
   const [newReviewName, setNewReviewName] = useState('');
   const [newReviewComment, setNewReviewComment] = useState('');
@@ -314,13 +359,19 @@ export default function CompanyPage() {
     }
   };
 
-  const handleProductNavigation = (productId) => {
-    navigate(`/product/${productId}`, { 
+  const handleProductNavigation = (product) => {
+    const productId = product.id || product.productId;
+    const productName = product.name || product.productName || 'Product';
+    const productSlug = generateSlug(productName);
+    
+    // Use SEO-friendly slug-based URL for product
+    navigate(`/${productSlug}`, { 
       state: { 
         city: companyData?.city || companyData?.district || 'Madurai', 
         company: companyData?.name || companyData?.businessName || 'Company',
-        companyId: companyData?.id || id,
-        category: companyData?.category || ''
+        companyId: companyData?.id || id || slug,
+        category: companyData?.category || '',
+        productId: productId // Keep ID for API calls
       } 
     });
   };

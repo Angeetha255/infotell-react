@@ -4,7 +4,7 @@ import PopularTrending from '../PopularTrending/PopularTrending';
 import FloatingDust from '../Effects/Canvas/FloatingDust';
 import { apiService } from '../../services/api';
 import './HomePage.css';
-import { formatCompanyName } from '../../utils/helpers';
+import { formatCompanyName, generateSlug } from '../../utils/helpers';
 
 /* ── Helper: get currently selected city from Header dropdown ── */
 function getSelectedCity() {
@@ -127,10 +127,12 @@ export default function HomePage() {
     fetchHomePageData();
   }, []);
 
-  /* ── Category click handler: navigate to CategoryPage with clean URL ── */
+  /* ── Category click handler: navigate to CategoryPage with SEO-friendly slug URL ── */
   const handleCategoryClick = (categoryLabel) => {
     const city = getSelectedCity();
-    navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(categoryLabel)}`);
+    const citySlug = generateSlug(city);
+    const categorySlug = generateSlug(categoryLabel);
+    navigate(`/${citySlug}/${categorySlug}`);
   };
 
   return (

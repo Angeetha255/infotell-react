@@ -4,6 +4,7 @@ import { setLoginOpen } from "../../store/store";
 import { apiService } from "../../services/api";
 import "./Header.css";
 import { useDispatch } from "react-redux";
+import { generateSlug } from "../../utils/helpers";
 
 export default function Header() {
   const dispatch = useDispatch();
@@ -19,10 +20,14 @@ export default function Header() {
 
   // Derive initial city from URL, localStorage, or empty
   const getInitialCity = () => {
-    // Priority 1: URL path (category pages always have city in URL)
-    const categoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
-    if (categoryMatch) {
-      return decodeURIComponent(categoryMatch[1]);
+    // Priority 1: URL path - handle both old (/category/city/query) and new (/city/category) patterns
+    const oldCategoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
+    if (oldCategoryMatch) {
+      return decodeURIComponent(oldCategoryMatch[1]);
+    }
+    const newCategoryMatch = location.pathname.match(/^\/([^/]+)\/([^/]+)$/);
+    if (newCategoryMatch && !['login', 'company', 'product'].includes(newCategoryMatch[1])) {
+      return decodeURIComponent(newCategoryMatch[1]);
     }
     // Priority 2: localStorage (persists across refresh for all pages)
     const storedCity = localStorage.getItem('infotell_selected_city');
@@ -309,10 +314,16 @@ export default function Header() {
   };
 
   const updateCategoryPageCity = (newCity) => {
-    const categoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
-    if (categoryMatch) {
-      const query = categoryMatch[2];
+    const oldCategoryMatch = location.pathname.match(/^\/category\/([^/]+)\/([^/]+)/);
+    if (oldCategoryMatch) {
+      const query = oldCategoryMatch[2];
       navigate(`/category/${encodeURIComponent(newCity)}/${encodeURIComponent(query)}`, { replace: true });
+    } else {
+      const newCategoryMatch = location.pathname.match(/^\/([^/]+)\/([^/]+)$/);
+      if (newCategoryMatch && !['login', 'company', 'product'].includes(newCategoryMatch[1])) {
+        const query = newCategoryMatch[2];
+        navigate(`/${generateSlug(newCity)}/${generateSlug(query)}`, { replace: true });
+      }
     }
   };
 
@@ -339,14 +350,15 @@ export default function Header() {
         // For subcategory, navigate with the subcategory name itself
         // Pass parent category ID in state for filtering
         const parentCategoryId = subcategoryData.categoryId || subcategoryData.parentId;
-        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(text.trim())}`, {
+        navigate(`/${generateSlug(city)}/${generateSlug(text.trim())}`, {
           state: { isSubcategorySearch: true, parentCategoryId }
         });
       } else if (type === 'category') {
-        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(text.trim())}`);
+        navigate(`/${generateSlug(city)}/${generateSlug(text.trim())}`);
       } else if (companyData) {
-        const companyId = companyData.id || companyData._id || 'details';
-        navigate(`/company/${companyId}`, { state: { companyData } });
+        const companyName = companyData.businessName || companyData.name || '';
+        const companySlug = generateSlug(companyName);
+        navigate(`/${companySlug}`, { state: { companyData } });
       } else {
         const trimmedText = text.trim();
         const matchingCompanies = companies.filter((company) => {
@@ -358,10 +370,11 @@ export default function Header() {
         
         if (matchingCompanies.length > 0) {
           const company = matchingCompanies[0];
-          const companyId = company.id || company._id || 'details';
-          navigate(`/company/${companyId}`, { state: { companyData: company } });
+          const companyName = company.businessName || company.name || '';
+          const companySlug = generateSlug(companyName);
+          navigate(`/${companySlug}`, { state: { companyData: company } });
         } else {
-          navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(trimmedText)}`);
+          navigate(`/${generateSlug(city)}/${generateSlug(trimmedText)}`);
         }
       }
     }
@@ -390,10 +403,11 @@ export default function Header() {
       
       if (matchingCompanies.length > 0) {
         const company = matchingCompanies[0];
-        const companyId = company.id || company._id || 'details';
-        navigate(`/company/${companyId}`, { state: { companyData: company } });
+        const companyName = company.businessName || company.name || '';
+        const companySlug = generateSlug(companyName);
+        navigate(`/${companySlug}`, { state: { companyData: company } });
       } else {
-        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(trimmedQuery)}`);
+        navigate(`/${generateSlug(city)}/${generateSlug(trimmedQuery)}`);
       }
     }
   };

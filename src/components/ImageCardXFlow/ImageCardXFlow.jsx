@@ -32,7 +32,7 @@ function Card({ dataObj, onCardClickFunc }) {
   return (
     <div
       className="img-listing-card"
-      onClick={() => onCardClickFunc(dataObj.id)}
+      onClick={() => onCardClickFunc(dataObj)}
     >
       <div className="img-card-image-box">
         <img src={dataObj.images[imgIndex]} alt={dataObj.name} />

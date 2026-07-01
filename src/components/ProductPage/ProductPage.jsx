@@ -5,15 +5,17 @@ import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
 import ImageCardXFlow from "../ImageCardXFlow/ImageCardXFlow";
 import ShareButton from "../ShareButton/ShareButton";
-import { formatCompanyName } from "../../utils/helpers";
+import { formatCompanyName, generateSlug } from "../../utils/helpers";
+import { useSlugData } from "../SlugResolver/SlugResolver";
 
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
 const BACKEND_BASE_URL = 'http://localhost:5006';
 
 export default function ProductPage() {
-  const { productId } = useParams();
+  const { productId, slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const slugData = useSlugData();
 
   // Breadcrumb state - initialized from location.state, updated dynamically from API data
   const [breadcrumbCity, setBreadcrumbCity] = useState(location.state?.city || 'Madurai');
@@ -114,23 +116,304 @@ export default function ProductPage() {
     const fetchProductData = async () => {
       setLoading(true);
       try {
-        // Fetch all products and find the one matching the productId
+        // Check if product data is passed via SlugResolver context
+        if (slugData?.type === 'product' && slugData?.data) {
+          setProductData(slugData.data);
+          const currentProductId = slugData.data.id;
+
+          // Fetch similar products
+          const allProductsResponse = await apiService.products.getAll();
+          const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+          
+          if (allProductsResponse.data) {
+            const similarList = allProductsList
+              .filter(p => String(p.id) !== String(currentProductId))
+              .filter(p => p.productCategory === slugData.data.productCategory || String(p.companyId) === String(slugData.data.companyId))
+              .slice(0, 5)
+              .map(p => {
+                let simImages;
+                if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                  simImages = p.productImages.map(img => resolveImageUrl(img));
+                } else if (p.coverImage) {
+                  simImages = [resolveImageUrl(p.coverImage)];
+                } else if (p.images && p.images.length > 0) {
+                  simImages = p.images.map(img => resolveImageUrl(img));
+                } else {
+                  simImages = [PLACEHOLDER_IMAGE];
+                }
+                return {
+                  id: p.id,
+                  name: p.productName || p.name || 'Product',
+                  images: simImages,
+                  priceFlag: p.priceFlag !== undefined ? p.priceFlag : true,
+                  productMrp: p.productMrp || p.price || 0,
+                  discountPrice: p.discountPrice,
+                  discountPercentage: p.discountPercentage,
+                  companyId: p.companyId
+                };
+              });
+            setSimilarProducts(similarList);
+          }
+
+          // Fetch company info
+          if (slugData.data.companyId) {
+            try {
+              const companyResponse = await apiService.businesses.getById(slugData.data.companyId);
+              if (companyResponse.data) {
+                setCompanyInfo(companyResponse.data);
+                setBreadcrumbCompanyId(slugData.data.companyId);
+                const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
+                setBreadcrumbCompanyName(companyName);
+              }
+            } catch (err) {
+              console.error("Error fetching business/company info:", err);
+            }
+          }
+
+          // Fetch product reviews
+          try {
+            const reviewsResponse = await apiService.reviews.getByProduct(currentProductId);
+            if (reviewsResponse.data) {
+              const reviewsList = Array.isArray(reviewsResponse.data)
+                ? reviewsResponse.data
+                : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+              const mappedComments = reviewsList.map(r => ({
+                id: r.id,
+                user: r.userName,
+                rating: r.rating,
+                date: new Date(r.createdAt).toLocaleDateString(),
+                text: r.comment
+              }));
+              setUserComments(mappedComments);
+            }
+          } catch (reviewError) {
+            setUserComments([]);
+          }
+
+          setLoading(false);
+          return;
+        }
+
+        // Check if product data is passed via navigation state (from direct navigation)
+        if (location.state?.productData) {
+          setProductData(location.state.productData);
+          const currentProductId = location.state.productData.id;
+          
+          // Update breadcrumb state if provided
+          if (location.state.city) setBreadcrumbCity(location.state.city);
+          if (location.state.company) setBreadcrumbCompanyName(location.state.company);
+          if (location.state.companyId) setBreadcrumbCompanyId(location.state.companyId);
+          if (location.state.category) setBreadcrumbCategory(location.state.category);
+
+          // Fetch similar products
+          const allProductsResponse = await apiService.products.getAll();
+          const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+          
+          if (allProductsResponse.data) {
+            const similarList = allProductsList
+              .filter(p => String(p.id) !== String(currentProductId))
+              .filter(p => p.productCategory === location.state.productData.productCategory || String(p.companyId) === String(location.state.productData.companyId))
+              .slice(0, 5)
+              .map(p => {
+                let simImages;
+                if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                  simImages = p.productImages.map(img => resolveImageUrl(img));
+                } else if (p.coverImage) {
+                  simImages = [resolveImageUrl(p.coverImage)];
+                } else if (p.images && p.images.length > 0) {
+                  simImages = p.images.map(img => resolveImageUrl(img));
+                } else {
+                  simImages = [PLACEHOLDER_IMAGE];
+                }
+                return {
+                  id: p.id,
+                  name: p.productName || p.name || 'Product',
+                  images: simImages,
+                  priceFlag: p.priceFlag !== undefined ? p.priceFlag : true,
+                  productMrp: p.productMrp || p.price || 0,
+                  discountPrice: p.discountPrice,
+                  discountPercentage: p.discountPercentage,
+                  companyId: p.companyId
+                };
+              });
+            setSimilarProducts(similarList);
+          }
+
+          // Fetch company info
+          if (location.state.productData.companyId) {
+            try {
+              const companyResponse = await apiService.businesses.getById(location.state.productData.companyId);
+              if (companyResponse.data) {
+                setCompanyInfo(companyResponse.data);
+                setBreadcrumbCompanyId(location.state.productData.companyId);
+                const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
+                setBreadcrumbCompanyName(companyName);
+              }
+            } catch (err) {
+              console.error("Error fetching business/company info:", err);
+            }
+          }
+
+          // Fetch product reviews
+          try {
+            const reviewsResponse = await apiService.reviews.getByProduct(currentProductId);
+            if (reviewsResponse.data) {
+              const reviewsList = Array.isArray(reviewsResponse.data)
+                ? reviewsResponse.data
+                : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+              const mappedComments = reviewsList.map(r => ({
+                id: r.id,
+                user: r.userName,
+                rating: r.rating,
+                date: new Date(r.createdAt).toLocaleDateString(),
+                text: r.comment
+              }));
+              setUserComments(mappedComments);
+            }
+          } catch (reviewError) {
+            setUserComments([]);
+          }
+
+          setLoading(false);
+          return;
+        }
+
+        // If no data from context or state, fetch by slug
+        if (slug && !productId) {
+          const allProductsResponse = await apiService.products.getAll();
+          const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+          
+          if (allProductsResponse.data) {
+            const foundProduct = allProductsList.find(p => {
+              const productName = p.productName || p.name || '';
+              const productSlug = generateSlug(productName);
+              return productSlug === slug;
+            });
+
+            if (foundProduct) {
+              setProductData(foundProduct);
+              const currentProductId = foundProduct.id;
+
+              // Fetch similar products
+              const similarList = allProductsList
+                .filter(p => String(p.id) !== String(currentProductId))
+                .filter(p => p.productCategory === foundProduct.productCategory || String(p.companyId) === String(foundProduct.companyId))
+                .slice(0, 5)
+                .map(p => {
+                  let simImages;
+                  if (p.productImages && Array.isArray(p.productImages) && p.productImages.length > 0) {
+                    simImages = p.productImages.map(img => resolveImageUrl(img));
+                  } else if (p.coverImage) {
+                    simImages = [resolveImageUrl(p.coverImage)];
+                  } else if (p.images && p.images.length > 0) {
+                    simImages = p.images.map(img => resolveImageUrl(img));
+                  } else {
+                    simImages = [PLACEHOLDER_IMAGE];
+                  }
+                  return {
+                    id: p.id,
+                    name: p.productName || p.name || 'Product',
+                    images: simImages,
+                    priceFlag: p.priceFlag !== undefined ? p.priceFlag : true,
+                    productMrp: p.productMrp || p.price || 0,
+                    discountPrice: p.discountPrice,
+                    discountPercentage: p.discountPercentage,
+                    companyId: p.companyId
+                  };
+                });
+              setSimilarProducts(similarList);
+
+              // Fetch company info
+              if (foundProduct.companyId) {
+                try {
+                  const companyResponse = await apiService.businesses.getById(foundProduct.companyId);
+                  if (companyResponse.data) {
+                    setCompanyInfo(companyResponse.data);
+                    setBreadcrumbCompanyId(foundProduct.companyId);
+                    const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
+                    setBreadcrumbCompanyName(companyName);
+                  }
+                } catch (err) {
+                  console.error("Error fetching business/company info:", err);
+                }
+              }
+
+              // Fetch product reviews
+              try {
+                const reviewsResponse = await apiService.reviews.getByProduct(currentProductId);
+                if (reviewsResponse.data) {
+                  const reviewsList = Array.isArray(reviewsResponse.data)
+                    ? reviewsResponse.data
+                    : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+                  const mappedComments = reviewsList.map(r => ({
+                    id: r.id,
+                    user: r.userName,
+                    rating: r.rating,
+                    date: new Date(r.createdAt).toLocaleDateString(),
+                    text: r.comment
+                  }));
+                  setUserComments(mappedComments);
+                }
+              } catch (reviewError) {
+                setUserComments([]);
+              }
+
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        // Redirect old /product URLs to new SEO-friendly URLs
+        if (location.pathname.startsWith('/product/') && productId) {
+          // Fetch all products to find the product name for slug
+          const allProductsResponse = await apiService.products.getAll();
+          const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
+          
+          if (allProductsResponse.data) {
+            const foundProduct = allProductsList.find(p => String(p.id) === String(productId));
+            if (foundProduct) {
+              const productName = foundProduct.productName || foundProduct.name || '';
+              const productSlug = generateSlug(productName);
+              navigate(`/${productSlug}`, { replace: true, state: { 
+                city: location.state?.city || breadcrumbCity,
+                company: location.state?.company || breadcrumbCompanyName,
+                companyId: location.state?.companyId || breadcrumbCompanyId,
+                category: location.state?.category || breadcrumbCategory,
+                productId: productId
+              }});
+              return;
+            }
+          }
+        }
+
+        // Fetch all products and find the one matching the productId or slug
         // (getById endpoint returns 500 error, so we use getAll as workaround)
         const allProductsResponse = await apiService.products.getAll();
         let foundProduct = null;
         const allProductsList = allProductsResponse.data?.products || allProductsResponse.data?.data || [];
         
         if (allProductsResponse.data) {
-          // Find the specific product by matching the string/number id
-          foundProduct = allProductsList.find(p => String(p.id) === String(productId));
+          // If slug is provided, resolve it to product ID
+          if (slug && !productId) {
+            foundProduct = allProductsList.find(p => {
+              const productName = p.productName || p.name || '';
+              const productSlug = generateSlug(productName);
+              return productSlug === slug;
+            });
+          } else {
+            // Find the specific product by matching the string/number id
+            foundProduct = allProductsList.find(p => String(p.id) === String(productId));
+          }
         }
 
         if (foundProduct) {
           setProductData(foundProduct);
+          const currentProductId = foundProduct.id;
 
           // Fetch similar products based on same productCategory or companyId
           const similarList = allProductsList
-            .filter(p => String(p.id) !== String(productId))
+            .filter(p => String(p.id) !== String(currentProductId))
             .filter(p => p.productCategory === foundProduct.productCategory || String(p.companyId) === String(foundProduct.companyId))
             .slice(0, 5)
             .map(p => {
@@ -258,7 +541,7 @@ export default function ProductPage() {
 
           // Fetch product reviews
           try {
-            const reviewsResponse = await apiService.reviews.getByProduct(productId);
+            const reviewsResponse = await apiService.reviews.getByProduct(currentProductId);
             if (reviewsResponse.data) {
               const reviewsList = Array.isArray(reviewsResponse.data)
                 ? reviewsResponse.data
@@ -284,22 +567,28 @@ export default function ProductPage() {
       }
     };
 
-    if (productId) {
+    if (productId || slug) {
       fetchProductData();
     }
-  }, [productId]);
+  }, [productId, slug]);
 
   const handleShowMoreComments = () => {
     setVisibleCommentsCount((prev) => Math.min(prev + 2, userComments.length));
   };
 
-  const handleProductNavigation = (productId) => {
-    navigate(`/product/${productId}`, { 
+  const handleProductNavigation = (product) => {
+    const productId = product.id || product.productId;
+    const productName = product.name || product.productName || 'Product';
+    const productSlug = generateSlug(productName);
+    
+    // Use SEO-friendly slug-based URL for product
+    navigate(`/${productSlug}`, { 
       state: { 
         city: breadcrumbCity, 
         company: breadcrumbCompanyName,
         companyId: breadcrumbCompanyId,
-        category: breadcrumbCategory
+        category: breadcrumbCategory,
+        productId: productId // Keep ID for API calls
       } 
     });
   };
@@ -361,7 +650,7 @@ export default function ProductPage() {
           {' > '}
           <span 
             className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/category/${encodeURIComponent(breadcrumbCity)}/${encodeURIComponent(breadcrumbCategory)}`, { 
+            onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCity)}/${generateSlug(breadcrumbCategory)}`, { 
               city: breadcrumbCity,
               category: breadcrumbCategory
             })}
@@ -372,7 +661,7 @@ export default function ProductPage() {
           {breadcrumbCompanyId ? (
             <span 
               className="pdp-v4-breadcrumb-item"
-              onClick={() => handleBreadcrumbClick(`/company/${breadcrumbCompanyId}`, { 
+              onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCompanyName)}`, { 
                 companyData: companyInfo
               })}
             >
