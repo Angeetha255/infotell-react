@@ -497,12 +497,6 @@ export default function Header() {
                         <i className={`fa-solid ${item.icon}`}></i>
                         <span>
                           {item.text}
-                          {item.type === 'category' && (
-                            <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
-                          )}
-                          {item.type === 'subcategory' && (
-                            <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Subcategory</span>
-                          )}
                         </span>
                       </div>
                     ))
@@ -630,12 +624,6 @@ export default function Header() {
                         <div className="trending-text-box">
                           <span className="trending-name">
                             {item.text}
-                            {item.type === 'category' && (
-                              <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
-                            )}
-                            {item.type === 'subcategory' && (
-                              <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Subcategory</span>
-                            )}
                           </span>
                         </div>
                       </div>

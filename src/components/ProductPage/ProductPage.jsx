@@ -17,9 +17,9 @@ export default function ProductPage() {
   const location = useLocation();
   const slugData = useSlugData();
 
-  // Breadcrumb state - initialized from location.state, updated dynamically from API data
-  const [breadcrumbCity, setBreadcrumbCity] = useState(location.state?.city || 'Madurai');
-  const [breadcrumbCompanyName, setBreadcrumbCompanyName] = useState(location.state?.company || 'Company');
+  // Breadcrumb state - initialized from location.state or slugData, updated dynamically from API data
+  const [breadcrumbCity, setBreadcrumbCity] = useState(location.state?.city || slugData?.data?.district || slugData?.data?.city || '');
+  const [breadcrumbCompanyName, setBreadcrumbCompanyName] = useState(location.state?.company || '');
   const [breadcrumbCompanyId, setBreadcrumbCompanyId] = useState(location.state?.companyId || '');
   const [breadcrumbCategory, setBreadcrumbCategory] = useState(location.state?.category || '');
 
@@ -164,6 +164,12 @@ export default function ProductPage() {
                 setBreadcrumbCompanyId(slugData.data.companyId);
                 const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
                 setBreadcrumbCompanyName(companyName);
+                
+                // Update breadcrumb city and category from company data
+                const companyCity = companyResponse.data.district || companyResponse.data.city || companyResponse.data.area || '';
+                setBreadcrumbCity(companyCity);
+                const companyCategory = companyResponse.data.category || companyResponse.data.categoryName || '';
+                setBreadcrumbCategory(companyCategory);
               }
             } catch (err) {
               console.error("Error fetching business/company info:", err);
@@ -647,30 +653,32 @@ export default function ProductPage() {
           >
             Home
           </span>
-          {' > '}
-          <span 
-            className="pdp-v4-breadcrumb-item"
-            onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCity)}/${generateSlug(breadcrumbCategory)}`, { 
-              city: breadcrumbCity,
-              category: breadcrumbCategory
-            })}
-          >
-            {breadcrumbCity}
-          </span>
-          {' > '}
-          {breadcrumbCompanyId ? (
-            <span 
-              className="pdp-v4-breadcrumb-item"
-              onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCompanyName)}`, { 
-                companyData: companyInfo
-              })}
-            >
-              {breadcrumbCompanyName}
-            </span>
-          ) : (
-            <span className="pdp-v4-breadcrumb-current">
-              {breadcrumbCompanyName}
-            </span>
+          {breadcrumbCity && breadcrumbCategory && (
+            <>
+              {' > '}
+              <span 
+                className="pdp-v4-breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCity)}/${generateSlug(breadcrumbCategory)}`, { 
+                  city: breadcrumbCity,
+                  category: breadcrumbCategory
+                })}
+              >
+                {breadcrumbCity}
+              </span>
+            </>
+          )}
+          {breadcrumbCompanyId && breadcrumbCompanyName && (
+            <>
+              {' > '}
+              <span 
+                className="pdp-v4-breadcrumb-item"
+                onClick={() => handleBreadcrumbClick(`/${generateSlug(breadcrumbCompanyName)}`, { 
+                  companyData: companyInfo
+                })}
+              >
+                {breadcrumbCompanyName}
+              </span>
+            </>
           )}
           {' > '}
           <span className="pdp-v4-breadcrumb-current">
