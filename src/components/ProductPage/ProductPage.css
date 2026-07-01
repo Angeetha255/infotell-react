@@ -157,6 +157,10 @@
   margin: 0 0 0.85rem 0;
 }
 
+.pdp-v4-company-location-sub i {
+  margin-right: 8px;
+}
+
 .pdp-v4-company-stars-summary {
   display: flex;
   align-items: center;

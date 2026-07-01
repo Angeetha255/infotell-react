@@ -34,8 +34,31 @@ export default function Header() {
     if (storedCity) {
       return storedCity;
     }
-    // Priority 3: empty (will be filled from API default)
+    // Priority 3: empty (will be filled from IP detection or API default)
     return "";
+  };
+
+  // Detect user location from IP
+  const detectLocationFromIP = async () => {
+    try {
+      console.log('Detecting location from IP...');
+      console.log('Making request to: http://ip-api.com/json/');
+      // Try ip-api.com (free, no key required)
+      const response = await fetch('http://ip-api.com/json/');
+      console.log('Response received, status:', response.status);
+      if (!response.ok) throw new Error('IP detection failed');
+      const data = await response.json();
+      console.log('API Response Status:', data.status);
+      console.log('API Response - City:', data.city);
+      console.log('API Response - Region:', data.regionName);
+      console.log('API Response - Full data:', data);
+      const detectedCity = data.city || data.regionName || 'Coimbatore';
+      console.log('Final detected city:', detectedCity);
+      return detectedCity;
+    } catch (error) {
+      console.error('IP location detection failed, using fallback:', error);
+      return 'Coimbatore';
+    }
   };
 
   const [city, setCity] = useState(getInitialCity());
@@ -65,7 +88,14 @@ export default function Header() {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
+      console.log('Initial city state:', city);
       try {
+        // Always detect from IP to get real-time location, then update city
+        console.log('Detecting real-time location from IP...');
+        const detectedCity = await detectLocationFromIP();
+        setCity(detectedCity);
+        console.log('City updated from IP detection:', detectedCity);
+
         const citiesResponse = await apiService.cities.getAll();
 
         const citiesArray = Array.isArray(citiesResponse.data)
@@ -75,7 +105,7 @@ export default function Header() {
         if (citiesArray.length > 0) {
           const citiesData = citiesArray.map(c => c.name || c.districtName || c.district);
           setCities(citiesData);
-          // Only set city from API if city is not already set from URL or localStorage
+          // Only set city from API if city is still not set after IP detection
           if (!city) {
             setCity(citiesData[0] || "");
           }
@@ -96,7 +126,7 @@ export default function Header() {
         console.error("Error fetching initial data:", error);
         setCities([]);
         if (!city) {
-          setCity("");
+          setCity("Coimbatore");
         }
         setPopularSearches([]);
         setFiltered([]);

@@ -5,6 +5,7 @@ import "./ProductPage.css";
 import ReviewRating from "../ReviewRating/ReviewRating";
 import ImageCardXFlow from "../ImageCardXFlow/ImageCardXFlow";
 import ShareButton from "../ShareButton/ShareButton";
+import EnquiryModal from "../EnquiryModal/EnquiryModal";
 import { formatCompanyName, generateSlug } from "../../utils/helpers";
 import { useSlugData } from "../SlugResolver/SlugResolver";
 
@@ -32,6 +33,7 @@ export default function ProductPage() {
   // UI State hooks
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
   const [visibleCommentsCount, setVisibleCommentsCount] = useState(2);
+  const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
 
   const thumbnailScrollContainerRef = useRef(null);
 
@@ -916,7 +918,7 @@ export default function ProductPage() {
               <div className="pdp-v4-specs-table">
                 {productEntity.specs.map((item, index) => (
                   <div key={index} className="pdp-v4-specs-row">
-                    <span className="pdp-v4-spec-key">{item.label}:</span>
+                    <span className="pdp-v4-spec-key">{item.label} :</span>
                     <span className="pdp-v4-spec-val">{item.value}</span>
                   </div>
                 ))}
@@ -932,9 +934,7 @@ export default function ProductPage() {
                   <button
                     type="button"
                     className="pdp-v4-action-btn pdp-v4-btn-enquire"
-                    onClick={() =>
-                      alert("Requirement enquiry transmission opened.")
-                    }
+                    onClick={() => setIsEnquiryModalOpen(true)}
                   >
                     Enquire Now
                   </button>
@@ -1133,6 +1133,14 @@ export default function ProductPage() {
         </div>
         <ReviewRating reviewType={"product"} />
       </div>
+
+      <EnquiryModal
+        isOpen={isEnquiryModalOpen}
+        onClose={() => setIsEnquiryModalOpen(false)}
+        type="product"
+        productName={productEntity.name}
+        companyName={companyInfo?.name || breadcrumbCompanyName || ''}
+      />
     </div>
   );
 }

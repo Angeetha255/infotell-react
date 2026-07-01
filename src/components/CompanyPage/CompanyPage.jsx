@@ -5,9 +5,10 @@ import './CompanyPage.css';
 import ReviewRating from '../ReviewRating/ReviewRating';
 import ImageCardXFlow from '../ImageCardXFlow/ImageCardXFlow';
 import ShareButton from '../ShareButton/ShareButton';
+import EnquiryModal from '../EnquiryModal/EnquiryModal';
 import { formatCompanyName, removeDuplicates, generateSlug } from '../../utils/helpers';
 
-const TABS = ['Overview', 'Photos', 'Catalogue', 'Reviews'];
+const TABS = ['Overview', 'Photos', 'Catalogue', 'Working Hours', 'Reviews'];
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/400x300?text=No+Image';
 const BACKEND_BASE_URL = 'http://localhost:5006';
 
@@ -28,6 +29,7 @@ export default function CompanyPage() {
   const [businessSubcategories, setBusinessSubcategories] = useState([]);
   const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
 
   // Login & Review Form States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -527,7 +529,7 @@ export default function CompanyPage() {
                 <a href={`tel:${companyData.mobileNumber || companyData.phone || ''}`} className="btn-company-call">
                   <i className="fas fa-phone"></i> {companyData.mobileNumber || companyData.phone || "Phone not available"}
                 </a>
-                <button className="btn-enquire">
+                <button className="btn-enquire" onClick={() => setIsEnquiryModalOpen(true)}>
                   Enquire Now
                 </button>
                 <button className="btn-company-whatsapp">
@@ -607,7 +609,34 @@ export default function CompanyPage() {
                   </div>
                 )}
 
-                {/* VIEW 4: ACTIVE REVIEWS DISPLAY LIST LAYER */}
+                {/* VIEW 4: WORKING HOURS COMPONENT */}
+                {activeTab === 'Working Hours' && (
+                  <div className="tab-pane-content animation-fade-in">
+                    {businessHours && typeof businessHours === 'object' && Object.keys(businessHours).length > 0 ? (
+                      <div className="working-hours-container">
+                        {Object.entries(businessHours).map(([day, hours]) => {
+                          if (typeof hours === 'object' && hours !== null) {
+                            return (
+                              <div key={day} className="working-hours-row">
+                                <span className="working-hours-day">{day} - </span>
+                                <span className="working-hours-time">
+                                  {hours.isWorkingDay === false ? 'Closed' : 
+                                   `${hours.openTime || hours.open || 'N/A'} - ${hours.closeTime || hours.close || 'N/A'}`
+                                  }
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                    ) : (
+                      <p className="empty-state-text">Working hours not available</p>
+                    )}
+                  </div>
+                )}
+
+                {/* VIEW 5: ACTIVE REVIEWS DISPLAY LIST LAYER */}
                 {activeTab === 'Reviews' && (
                   <div className="tab-pane-content animation-fade-in">
                     <div className="reviews-vertical-feed-stack">
@@ -644,8 +673,8 @@ export default function CompanyPage() {
               <h2 className="section-card-heading">Establishment Track Profile</h2>
               <div className="establishment-details-grid">
                 <div className="establishment-grid-node">
-                  <span className="establishment-node-label">Year of Corporate Registration</span>
-                  <span className="establishment-node-value">{companyData.established || "N/A"}</span>
+                  <span className="establishment-node-label">Year of Establishment</span>
+                  <span className="establishment-node-value">{companyData.yearOfEstablishment || companyData.established || "N/A"}</span>
                 </div>
                 <div className="establishment-grid-node">
                   <span className="establishment-node-label">Current Operational Scale Status</span>
@@ -671,21 +700,25 @@ export default function CompanyPage() {
               <div className="company-sidebar-card">
                 <h4 className="company-sidebar-title">Business Information</h4>
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-building sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Business Name</div>
-                    <div className="sidebar-info-value">{formatCompanyName(companyData.businessName || companyData.name) || "N/A"}</div>
+                {(companyData.businessName || companyData.name) && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-building sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Business Name</div>
+                      <div className="sidebar-info-value">{formatCompanyName(companyData.businessName || companyData.name)}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-user sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Owner Name</div>
-                    <div className="sidebar-info-value">{companyData.ownerName || "N/A"}</div>
+                {companyData.ownerName && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-user sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Owner Name</div>
+                      <div className="sidebar-info-value">{companyData.ownerName}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="sidebar-info-row">
                   <div className="sidebar-info-icon-container"><i className="fas fa-map-marker-alt sidebar-info-icon"></i></div>
@@ -705,13 +738,15 @@ export default function CompanyPage() {
                   </div>
                 </div>
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-phone sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Mobile Number</div>
-                    <div className="sidebar-info-value">{companyData.mobileNumber || companyData.phone || "N/A"}</div>
+                {(companyData.mobileNumber || companyData.phone) && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-phone sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Mobile Number</div>
+                      <div className="sidebar-info-value">{companyData.mobileNumber || companyData.phone}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {companyData.telephoneNumber && (
                   <div className="sidebar-info-row">
@@ -733,48 +768,47 @@ export default function CompanyPage() {
                   </div>
                 )}
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-envelope sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Email</div>
-                    <div className="sidebar-info-value">{companyData.email || "N/A"}</div>
+                {companyData.email && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-envelope sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Email</div>
+                      <div className="sidebar-info-value">{companyData.email}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-calendar-alt sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Year of Establishment</div>
-                    <div className="sidebar-info-value">{companyData.yearOfEstablishment || companyData.established || "N/A"}</div>
+                {companyData.yearlyTurnover && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-chart-line sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Yearly Turnover</div>
+                      <div className="sidebar-info-value">{companyData.yearlyTurnover}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-chart-line sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Yearly Turnover</div>
-                    <div className="sidebar-info-value">{companyData.yearlyTurnover || "N/A"}</div>
+                {companyData.numberOfEmployees && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-users sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">Number of Employees</div>
+                      <div className="sidebar-info-value">{companyData.numberOfEmployees}</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-users sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">Number of Employees</div>
-                    <div className="sidebar-info-value">{companyData.numberOfEmployees || "N/A"}</div>
+                {companyData.gstNumber && (
+                  <div className="sidebar-info-row">
+                    <div className="sidebar-info-icon-container"><i className="fas fa-file-invoice sidebar-info-icon"></i></div>
+                    <div>
+                      <div className="sidebar-info-label">GST Number</div>
+                      <div className="sidebar-info-value">{companyData.gstNumber}</div>
+                    </div>
                   </div>
-                </div>
-
-                <div className="sidebar-info-row">
-                  <div className="sidebar-info-icon-container"><i className="fas fa-file-invoice sidebar-info-icon"></i></div>
-                  <div>
-                    <div className="sidebar-info-label">GST Number</div>
-                    <div className="sidebar-info-value">{companyData.gstNumber || "N/A"}</div>
-                  </div>
-                </div>
+                )}
 
 
                 
@@ -846,6 +880,13 @@ export default function CompanyPage() {
 
         </div>
       </div>
+
+      <EnquiryModal
+        isOpen={isEnquiryModalOpen}
+        onClose={() => setIsEnquiryModalOpen(false)}
+        type="company"
+        companyName={formatCompanyName(companyData.businessName || companyData.name)}
+      />
     </div>
   );
 }
