@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { apiService } from "../../services/api";
 import "./CategoryPage.css";
 import { formatCompanyName, removeDuplicates } from "../../utils/helpers";
@@ -101,6 +101,7 @@ export default function CategoryPage() {
   const { city: cityParam, query: queryParam } = useParams();
   const city = decodeURIComponent(cityParam || "");
   const query = decodeURIComponent(queryParam || "");
+  const location = useLocation();
 
   const navigate = useNavigate();
 
@@ -152,6 +153,14 @@ export default function CategoryPage() {
    *  2. Collect their `companyId` values
    *  3. Call Companies API → get company details for those IDs
    *  4. Display only those matching companies
+   *  
+   *  OR for subcategory search:
+   *  1. Call Subcategories API → find subcategory matching the query
+   *  2. Get parent category ID from subcategory
+   *  3. Call Businesses API → find businesses whose `category` matches the parent category
+   *  4. Collect their `companyId` values
+   *  5. Call Companies API → get company details for those IDs
+   *  6. Display only those matching companies
    */
   const triggerLazyListingFetch = async () => {
     if (allListings.length === 0 && !listingsFetched) {
@@ -159,23 +168,106 @@ export default function CategoryPage() {
       try {
         setLoading(true);
 
-        // Step 1: Fetch all businesses from Businesses API
+        // Check if this is a subcategory search from navigation state
+        const isSubcategorySearch = location.state?.isSubcategorySearch;
+        const parentCategoryId = location.state?.parentCategoryId;
+
+        // Step 1: Check if the query is a subcategory
+        const subcategoriesResponse = await apiService.subcategories.getAll();
+        const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
+          ? subcategoriesResponse.data
+          : (subcategoriesResponse.data?.subcategories || subcategoriesResponse.data?.data || []);
+
+        const normalizedQuery = query.trim().toLowerCase();
+        let matchedSubcategory = null;
+
+        // If we have parentCategoryId from state, use it to find the subcategory
+        if (isSubcategorySearch && parentCategoryId) {
+          matchedSubcategory = subcategoriesArray.find(sub => {
+            const subId = sub.id || sub._id;
+            const subParentId = sub.categoryId || sub.parentId;
+            const subName = (sub.name || sub.subcategoryName || '').trim();
+            const cleanedSubName = subName.replace(/"/g, '').toLowerCase();
+            return (String(subParentId) === String(parentCategoryId)) && 
+                   (cleanedSubName === normalizedQuery || cleanedSubName.includes(normalizedQuery) || normalizedQuery.includes(cleanedSubName));
+          });
+        } else {
+          // Otherwise, search by query
+          matchedSubcategory = subcategoriesArray.find(sub => {
+            const subName = (sub.name || sub.subcategoryName || '').trim();
+            const cleanedSubName = subName.replace(/"/g, '').toLowerCase();
+            return cleanedSubName.includes(normalizedQuery) || normalizedQuery.includes(cleanedSubName);
+          });
+        }
+
+        let matchedBusinesses = [];
+        let targetCategory = query;
+
+        if (matchedSubcategory) {
+          // If it's a subcategory, get the parent category
+          const subParentId = matchedSubcategory.categoryId || matchedSubcategory.parentId || parentCategoryId;
+          if (subParentId) {
+            try {
+              const categoryResponse = await apiService.categories.getById(subParentId);
+              const category = categoryResponse.data;
+              targetCategory = category.name || category.categoryName || query;
+            } catch (catError) {
+              console.error("Error fetching parent category:", catError);
+              targetCategory = query;
+            }
+          }
+        }
+
+        // Step 2: Fetch all businesses from Businesses API
         const businessesResponse = await apiService.businesses.getAll();
         const businessesArray = Array.isArray(businessesResponse.data)
           ? businessesResponse.data
           : (businessesResponse.data?.data || businessesResponse.data?.businesses || []);
 
-        // Step 2: Filter businesses whose `category` matches the query (case-insensitive, trimmed)
+        // Step 3: Filter businesses whose `category` matches the target category (case-insensitive, trimmed)
         // The category field may contain multiple categories separated by commas
-        const normalizedQuery = query.trim().toLowerCase();
-        const matchedBusinesses = businessesArray.filter(biz => {
+        const normalizedTargetCategory = targetCategory.trim().toLowerCase();
+        console.log("Target category:", normalizedTargetCategory);
+        console.log("Matched subcategory:", matchedSubcategory);
+        
+        matchedBusinesses = businessesArray.filter(biz => {
           const bizCategory = (biz.category || biz.categoryName || '').trim();
           // Remove double quotes from the entire string first
           const cleanedCategory = bizCategory.replace(/"/g, '');
           // Split by comma and trim each category name
           const categoryList = cleanedCategory.split(',').map(cat => cat.trim().toLowerCase());
-          // Check if the selected category exists in the list
-          return categoryList.includes(normalizedQuery);
+          // Check if the target category exists in the list
+          const categoryMatch = categoryList.includes(normalizedTargetCategory);
+
+          // If it's a subcategory search, check if the business contains the subcategory
+          if (matchedSubcategory) {
+            const subcategoryName = (matchedSubcategory.name || matchedSubcategory.subcategoryName || '').trim().replace(/"/g, '').toLowerCase();
+            console.log("Looking for subcategory:", subcategoryName);
+            console.log("Business subcategory field:", biz.subcategory);
+            console.log("Business subcategories field:", biz.subcategories);
+            
+            // Check subcategory field (string)
+            const bizSubcategory = (biz.subcategory || '').trim().replace(/"/g, '').toLowerCase();
+            const subcategoryMatch = bizSubcategory.includes(subcategoryName) || subcategoryName.includes(bizSubcategory);
+            
+            // Check subcategories field (array)
+            let subcategoriesMatch = false;
+            if (biz.subcategories && Array.isArray(biz.subcategories)) {
+              subcategoriesMatch = biz.subcategories.some(sub => {
+                const cleanedSub = (sub || '').trim().replace(/"/g, '').toLowerCase();
+                return cleanedSub.includes(subcategoryName) || subcategoryName.includes(cleanedSub);
+              });
+            }
+            
+            console.log("Category match:", categoryMatch, "Subcategory match:", subcategoryMatch, "Subcategories match:", subcategoriesMatch);
+            
+            // Business must contain the subcategory (category match is optional for subcategory search)
+            // This allows businesses that have the subcategory but may not have the parent category in their category field
+            return subcategoryMatch || subcategoriesMatch;
+          }
+          
+          // For category search, just check category match
+          return categoryMatch;
         });
 
         // Collect unique companyId values from matched businesses
@@ -347,7 +439,17 @@ export default function CategoryPage() {
                   .map(sub => sub.name || sub.subcategoryName || sub.categoryName)
                   .filter(name => name);
                 
-                const uniqueKeywords = removeDuplicates(subcategoryNames);
+                // Clean keywords: remove quotes and trim
+                const cleanedKeywords = subcategoryNames.map(kw => {
+                  let cleaned = (kw || '').trim();
+                  // Remove surrounding double quotes
+                  cleaned = cleaned.replace(/^"|"$/g, '');
+                  // Remove surrounding single quotes
+                  cleaned = cleaned.replace(/^'|'$/g, '');
+                  return cleaned.trim();
+                });
+                
+                const uniqueKeywords = removeDuplicates(cleanedKeywords);
                 setKeywords(uniqueKeywords);
               } else {
                 // If no subcategories exist, hide the Related Keywords section

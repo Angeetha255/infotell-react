@@ -41,6 +41,8 @@ export default function Header() {
   const [companiesError, setCompaniesError] = useState(null);
   const [businesses, setBusinesses] = useState([]);
   const [businessesLoading, setBusinessesLoading] = useState(false);
+  const [subcategories, setSubcategories] = useState([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
@@ -84,6 +86,7 @@ export default function Header() {
 
         await fetchCompanies();
         await fetchBusinesses();
+        await fetchSubcategories();
       } catch (error) {
         console.error("Error fetching initial data:", error);
         setCities([]);
@@ -156,6 +159,22 @@ export default function Header() {
       setBusinesses([]);
     } finally {
       setBusinessesLoading(false);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    setSubcategoriesLoading(true);
+    try {
+      const response = await apiService.subcategories.getAll();
+      const subcategoriesArray = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.subcategories || response.data?.data || []);
+      setSubcategories(subcategoriesArray);
+    } catch (error) {
+      console.error("Error fetching subcategories:", error);
+      setSubcategories([]);
+    } finally {
+      setSubcategoriesLoading(false);
     }
   };
 
@@ -257,6 +276,32 @@ export default function Header() {
           });
         }
       });
+
+      // Check for subcategory matches
+      const matchedSubcategories = subcategories.filter(sub => {
+        const subName = (sub.name || sub.subcategoryName || '').trim();
+        // Remove double quotes before comparison
+        const cleanedSubName = subName.replace(/"/g, '').toLowerCase();
+        return cleanedSubName.includes(normalizedVal);
+      });
+
+      matchedSubcategories.forEach(sub => {
+        const subName = (sub.name || sub.subcategoryName || '').trim();
+        // Remove double quotes from display name
+        const cleanedSubName = subName.replace(/"/g, '');
+        const alreadyExists = mappedFiltered.some(item => 
+          item.text.toLowerCase() === cleanedSubName.toLowerCase()
+        );
+        if (!alreadyExists) {
+          mappedFiltered.push({
+            text: cleanedSubName,
+            icon: 'fa-tags',
+            companyData: null,
+            type: 'subcategory',
+            subcategoryData: sub
+          });
+        }
+      });
     }
     
     setFiltered(mappedFiltered);
@@ -283,14 +328,21 @@ export default function Header() {
     updateCategoryPageCity(selectedCity);
   };
 
-  const handleSelect = (text, companyData = null, type = 'company') => {
+  const handleSelect = (text, companyData = null, type = 'company', subcategoryData = null) => {
     setShowDrop(false);
     setIsMobileModalOpen(false);
 
     if (city !== undefined && text !== undefined && text.trim() !== "") {
       setQuery(text.trim());
 
-      if (type === 'category') {
+      if (type === 'subcategory' && subcategoryData) {
+        // For subcategory, navigate with the subcategory name itself
+        // Pass parent category ID in state for filtering
+        const parentCategoryId = subcategoryData.categoryId || subcategoryData.parentId;
+        navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(text.trim())}`, {
+          state: { isSubcategorySearch: true, parentCategoryId }
+        });
+      } else if (type === 'category') {
         navigate(`/category/${encodeURIComponent(city)}/${encodeURIComponent(text.trim())}`);
       } else if (companyData) {
         const companyId = companyData.id || companyData._id || 'details';
@@ -426,13 +478,16 @@ export default function Header() {
                       <div
                         key={idx}
                         className="search-item"
-                        onClick={() => handleSelect(item.text, item.companyData, item.type)}
+                        onClick={() => handleSelect(item.text, item.companyData, item.type, item.subcategoryData)}
                       >
                         <i className={`fa-solid ${item.icon}`}></i>
                         <span>
                           {item.text}
                           {item.type === 'category' && (
                             <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
+                          )}
+                          {item.type === 'subcategory' && (
+                            <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Subcategory</span>
                           )}
                         </span>
                       </div>
@@ -553,7 +608,7 @@ export default function Header() {
                       <div
                         key={idx}
                         className="trending-item"
-                        onClick={() => handleSelect(item.text, item.companyData, item.type)}
+                        onClick={() => handleSelect(item.text, item.companyData, item.type, item.subcategoryData)}
                       >
                         <div className="trending-icon-box">
                           <i className={`fa-solid ${item.icon}`}></i>
@@ -563,6 +618,9 @@ export default function Header() {
                             {item.text}
                             {item.type === 'category' && (
                               <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Category</span>
+                            )}
+                            {item.type === 'subcategory' && (
+                              <span className="search-item-type-badge" style={{ marginLeft: '8px', fontSize: '0.7rem', color: '#888', fontStyle: 'italic' }}>Subcategory</span>
                             )}
                           </span>
                         </div>

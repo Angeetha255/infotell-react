@@ -172,18 +172,38 @@ export default function CompanyPage() {
             const allSubcategories = [];
             companyBusinesses.forEach(biz => {
               if (biz.subcategory && typeof biz.subcategory === 'string') {
-                allSubcategories.push(biz.subcategory);
+                allSubcategories.push(biz.subcategory.trim());
               }
               if (biz.subcategories && Array.isArray(biz.subcategories)) {
-                allSubcategories.push(...biz.subcategories);
+                biz.subcategories.forEach(sub => {
+                  if (typeof sub === 'string') {
+                    allSubcategories.push(sub.trim());
+                  }
+                });
               }
               if (biz.categoryName && typeof biz.categoryName === 'string') {
-                allSubcategories.push(biz.categoryName);
+                allSubcategories.push(biz.categoryName.trim());
               }
             });
             
-            // Remove duplicates and set state
-            const uniqueSubcategories = removeDuplicates(allSubcategories);
+            // Clean keywords: remove quotes, trim, and remove duplicates
+            const cleanedSubcategories = allSubcategories.map(cat => {
+              // Remove surrounding double quotes
+              let cleaned = cat.replace(/^"|"$/g, '');
+              // Remove surrounding single quotes
+              cleaned = cleaned.replace(/^'|'$/g, '');
+              // Trim whitespace
+              cleaned = cleaned.trim();
+              return cleaned;
+            });
+            
+            // Remove duplicates (case-insensitive) and set state
+            const uniqueSubcategories = [...new Set(
+              cleanedSubcategories.map(cat => cat.toLowerCase())
+            )].map(lowerCat => {
+              // Return the original casing of the first occurrence
+              return cleanedSubcategories.find(cat => cat.toLowerCase() === lowerCat);
+            });
             setBusinessSubcategories(uniqueSubcategories);
           }
         } catch (subError) {
