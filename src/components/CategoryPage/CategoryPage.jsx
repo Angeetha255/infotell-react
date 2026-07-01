@@ -166,10 +166,16 @@ export default function CategoryPage() {
           : (businessesResponse.data?.data || businessesResponse.data?.businesses || []);
 
         // Step 2: Filter businesses whose `category` matches the query (case-insensitive, trimmed)
+        // The category field may contain multiple categories separated by commas
         const normalizedQuery = query.trim().toLowerCase();
         const matchedBusinesses = businessesArray.filter(biz => {
-          const bizCategory = (biz.category || biz.categoryName || '').trim().toLowerCase();
-          return bizCategory === normalizedQuery;
+          const bizCategory = (biz.category || biz.categoryName || '').trim();
+          // Remove double quotes from the entire string first
+          const cleanedCategory = bizCategory.replace(/"/g, '');
+          // Split by comma and trim each category name
+          const categoryList = cleanedCategory.split(',').map(cat => cat.trim().toLowerCase());
+          // Check if the selected category exists in the list
+          return categoryList.includes(normalizedQuery);
         });
 
         // Collect unique companyId values from matched businesses
@@ -252,6 +258,7 @@ export default function CategoryPage() {
       try {
         // Fetch all categories to find related ones
         const categoriesResponse = await apiService.categories.getAll();
+        
         if (categoriesResponse.data) {
           const categoriesArray = Array.isArray(categoriesResponse.data)
             ? categoriesResponse.data
@@ -266,12 +273,14 @@ export default function CategoryPage() {
           let related = [];
           if (currentCategory) {
             const parentId = currentCategory.parentId || currentCategory.categoryId;
+            
             if (parentId) {
-              // Get categories with same parent
+              // Get categories with same parent (siblings)
               related = categoriesArray
                 .filter(cat => 
                   (cat.parentId === parentId || cat.categoryId === parentId) &&
-                  cat.id !== currentCategory.id
+                  cat.id !== currentCategory.id &&
+                  (cat.name || cat.categoryName)
                 )
                 .slice(0, 8)
                 .map(cat => ({
@@ -280,9 +289,12 @@ export default function CategoryPage() {
                   count: `${cat.businessCount || 0} options`
                 }));
             } else {
-              // If no parent, get other categories at same level
+              // If no parent, show other categories as fallback
               related = categoriesArray
-                .filter(cat => cat.id !== currentCategory.id)
+                .filter(cat => {
+                  if (cat.id === currentCategory.id) return false;
+                  return (cat.name || cat.categoryName);
+                })
                 .slice(0, 8)
                 .map(cat => ({
                   id: cat.id,
@@ -290,34 +302,68 @@ export default function CategoryPage() {
                   count: `${cat.businessCount || 0} options`
                 }));
             }
-          }
-          
-          setRelatedCategories(related);
-        } else {
-          setRelatedCategories([]);
-        }
-
-        // Fetch subcategories for the current category as related keywords
-        const subcategoriesResponse = await apiService.categories.getByParent(query);
-        if (subcategoriesResponse.data) {
-          const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
-            ? subcategoriesResponse.data
-            : (subcategoriesResponse.data.subcategories || subcategoriesResponse.data.data || []);
-          
-          const subcategoryNames = subcategoriesArray
-            .map(sub => sub.name || sub.subcategoryName || sub.categoryName)
-            .filter(name => name);
-          
-          const uniqueKeywords = removeDuplicates(subcategoryNames);
-          setKeywords(uniqueKeywords.slice(0, 10));
-        } else {
-          // Fallback to trending searches if subcategories not available
-          const trendingResponse = await apiService.trending.getSearches();
-          if (trendingResponse.data) {
-            setKeywords(trendingResponse.data.slice(0, 8));
+            
+            // Remove duplicates based on category name
+            const uniqueRelated = removeDuplicates(related.map(cat => cat.name))
+              .map(name => related.find(cat => cat.name === name))
+              .filter(cat => cat);
+            
+            setRelatedCategories(uniqueRelated.slice(0, 8));
           } else {
+            // Fallback: if current category not found, show first 8 other categories
+            const fallbackRelated = categoriesArray
+              .filter(cat => (cat.name || cat.categoryName) && 
+                (cat.name || cat.categoryName).toLowerCase() !== query.toLowerCase())
+              .slice(0, 8)
+              .map(cat => ({
+                id: cat.id,
+                name: `${cat.name || cat.categoryName} in ${city}`,
+                count: `${cat.businessCount || 0} options`
+              }));
+            
+            const uniqueFallback = removeDuplicates(fallbackRelated.map(cat => cat.name))
+              .map(name => fallbackRelated.find(cat => cat.name === name))
+              .filter(cat => cat);
+            
+            setRelatedCategories(uniqueFallback.slice(0, 8));
+          }
+
+          // Fetch subcategories for the current category as related keywords
+          // First, get the current category to find its ID
+          const currentCategoryForSub = categoriesArray.find(cat => 
+            (cat.name || cat.categoryName || '').toLowerCase() === query.toLowerCase()
+          );
+          
+          if (currentCategoryForSub && currentCategoryForSub.id) {
+            const subcategoriesResponse = await apiService.subcategories.getByCategory(currentCategoryForSub.id);
+            
+            if (subcategoriesResponse.data) {
+              const subcategoriesArray = Array.isArray(subcategoriesResponse.data)
+                ? subcategoriesResponse.data
+                : (subcategoriesResponse.data.subcategories || subcategoriesResponse.data.data || []);
+              
+              if (subcategoriesArray.length > 0) {
+                const subcategoryNames = subcategoriesArray
+                  .map(sub => sub.name || sub.subcategoryName || sub.categoryName)
+                  .filter(name => name);
+                
+                const uniqueKeywords = removeDuplicates(subcategoryNames);
+                setKeywords(uniqueKeywords);
+              } else {
+                // If no subcategories exist, hide the Related Keywords section
+                setKeywords([]);
+              }
+            } else {
+              // If subcategories endpoint returns no data, hide the section
+              setKeywords([]);
+            }
+          } else {
+            // If current category not found, hide the section
             setKeywords([]);
           }
+        } else {
+          setRelatedCategories([]);
+          setKeywords([]);
         }
       } catch (error) {
         // Silently handle sidebar fetch errors
@@ -494,29 +540,28 @@ export default function CategoryPage() {
                 className={`filter-chip ${filterVerified ? "active-chip" : ""}`}
                 onClick={() => setFilterVerified(!filterVerified)}
               >
-                {filterVerified && <i className="fa fa-check-circle"></i>}{" "}
-                Verified
+                ✅ Verified
               </button>
 
               <button
                 className={`filter-chip ${filterTrust ? "active-chip" : ""}`}
                 onClick={() => setFilterTrust(!filterTrust)}
               >
-                {filterTrust && <i className="fa fa-check-circle"></i>} Trust
+                🛡 Trust
               </button>
 
               <button
                 className={`filter-chip ${filterQuickResponse ? "active-chip" : ""}`}
                 onClick={() => setFilterQuickResponse(!filterQuickResponse)}
               >
-                {filterQuickResponse && <i className="fa fa-check-circle"></i>} Quick Response
+                ⚡ Quick Response
               </button>
 
               <button
                 className={`filter-chip ${filterTopRated ? "active-chip" : ""}`}
                 onClick={() => setFilterTopRated(!filterTopRated)}
               >
-                {filterTopRated && <i className="fa fa-check-circle"></i>} Top Rated
+                ⭐ Top Rated
               </button>
             </div>
 
@@ -704,11 +749,11 @@ export default function CategoryPage() {
                 </div>
 
                 {/* Related Keywords Widget Segment */}
-                <div className="related-keywords-card-box">
-                  <h3 className="sidebar-title">Related Keywords</h3>
-                  <div className="keywords-flex-wrap">
-                    {keywords.length > 0 ? (
-                      keywords.map((kw, i) => (
+                {keywords.length > 0 && (
+                  <div className="related-keywords-card-box">
+                    <h3 className="sidebar-title">Related Keywords</h3>
+                    <div className="keywords-flex-wrap">
+                      {keywords.map((kw, i) => (
                         <span
                           key={i}
                           className="keyword-pill-tag"
@@ -716,12 +761,10 @@ export default function CategoryPage() {
                         >
                           #{kw}
                         </span>
-                      ))
-                    ) : (
-                      <p>No related keywords available</p>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </LazyViewElement>
           </div>

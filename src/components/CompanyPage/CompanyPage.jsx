@@ -433,7 +433,7 @@ export default function CompanyPage() {
                     <span className="profile-rating-text">{reviews.length} Ratings Verified </span>
                   </div>
                   <div className="profile-location">
-                    <i className="fas fa-map-marker-alt"></i> {companyData.area && companyData.district && companyData.state ? `${companyData.area}, ${companyData.district}, ${companyData.state}` : (companyData.address || "Address not available")} &nbsp;•&nbsp;
+                    <i className="fas fa-map-marker-alt"></i>  {companyData.area && companyData.district && companyData.state ? `${companyData.area}, ${companyData.district}, ${companyData.state}` : (companyData.address || "Address not available")} &nbsp;•&nbsp;
                     <span className="open-status">{getOpenStatus(businessHours)}</span>
                   </div>
                   

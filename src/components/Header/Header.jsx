@@ -126,6 +126,31 @@ export default function Header() {
         ? response.data
         : (response.data?.data || response.data?.businesses || []);
       setBusinesses(businessesArray);
+      
+      // Populate popular searches with individual categories from businesses
+      const allCategories = [];
+      businessesArray.forEach(biz => {
+        const bizCategory = (biz.category || biz.categoryName || '').trim();
+        if (bizCategory) {
+          // Remove double quotes from the entire string first
+          const cleanedCategory = bizCategory.replace(/"/g, '');
+          // Split by comma and trim each category
+          const categoryList = cleanedCategory.split(',').map(cat => cat.trim()).filter(cat => cat);
+          categoryList.forEach(cat => {
+            allCategories.push(cat);
+          });
+        }
+      });
+      
+      // Remove duplicates and set as popular searches
+      const uniqueCategories = [...new Set(allCategories)];
+      const popularCategories = uniqueCategories.map(cat => ({
+        text: cat,
+        icon: 'fa-tag',
+        companyData: null,
+        type: 'category'
+      }));
+      setPopularSearches(popularCategories);
     } catch (error) {
       console.error("Error fetching businesses:", error);
       setBusinesses([]);
@@ -198,14 +223,25 @@ export default function Header() {
 
     if (val.trim().length > 0) {
       const normalizedVal = val.trim().toLowerCase();
+      
+      // Split comma-separated categories from all businesses and collect individual categories
+      const allCategories = [];
+      businesses.forEach(biz => {
+        const bizCategory = (biz.category || biz.categoryName || '').trim();
+        if (bizCategory) {
+          // Remove double quotes from the entire string first
+          const cleanedCategory = bizCategory.replace(/"/g, '');
+          // Split by comma and trim each category
+          const categoryList = cleanedCategory.split(',').map(cat => cat.trim()).filter(cat => cat);
+          categoryList.forEach(cat => {
+            allCategories.push(cat);
+          });
+        }
+      });
+      
+      // Filter categories that match the search value
       const matchedCategories = [...new Set(
-        businesses
-          .filter(biz => {
-            const bizCategory = (biz.category || biz.categoryName || '').trim().toLowerCase();
-            return bizCategory.includes(normalizedVal);
-          })
-          .map(biz => biz.category || biz.categoryName)
-          .filter(Boolean)
+        allCategories.filter(cat => cat.toLowerCase().includes(normalizedVal))
       )];
 
       matchedCategories.forEach(catName => {

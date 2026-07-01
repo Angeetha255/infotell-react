@@ -68,6 +68,13 @@ export const apiService = {
     search: (query) => api.get(`/categories/search?q=${query}`),
   },
 
+  // Subcategories
+  subcategories: {
+    getAll: () => api.get('/subcategories'),
+    getByCategory: (categoryId) => api.get(`/subcategories?categoryId=${categoryId}`),
+    getById: (id) => api.get(`/subcategories/${id}`),
+  },
+
   // Businesses (Public endpoint - for business-specific details, hours, categories)
   businesses: {
     getAll: () => api.get('/businesses'),
