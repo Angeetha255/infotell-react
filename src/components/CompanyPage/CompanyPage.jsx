@@ -87,14 +87,18 @@ export default function CompanyPage() {
           
           // Fetch reviews for this company
           try {
-            const reviewsResponse = await apiService.reviews.getByBusiness(id);
+            const reviewsResponse = await apiService.reviews.getByBusiness(resolvedCompanyId);
             if (reviewsResponse.data) {
-              const mappedReviews = reviewsResponse.data.map(r => ({
+              const reviewsList = Array.isArray(reviewsResponse.data)
+                ? reviewsResponse.data
+                : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+              const mappedReviews = reviewsList.map(r => ({
                 id: r.id,
                 name: r.userName,
                 pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
                 rating: r.rating,
-                comment: r.comment
+                comment: r.comment,
+                date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''
               }));
               setReviews(mappedReviews);
             }
@@ -134,14 +138,18 @@ export default function CompanyPage() {
 
               // Fetch reviews for this company
               try {
-                const reviewsResponse = await apiService.reviews.getByBusiness(id);
+                const reviewsResponse = await apiService.reviews.getByBusiness(resolvedCompanyId);
                 if (reviewsResponse.data) {
-                  const mappedReviews = reviewsResponse.data.map(r => ({
+                  const reviewsList = Array.isArray(reviewsResponse.data)
+                    ? reviewsResponse.data
+                    : (reviewsResponse.data.reviews || reviewsResponse.data.data || []);
+                  const mappedReviews = reviewsList.map(r => ({
                     id: r.id,
                     name: r.userName,
                     pic: r.userAvatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
                     rating: r.rating,
-                    comment: r.comment
+                    comment: r.comment,
+                    date: r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''
                   }));
                   setReviews(mappedReviews);
                 }
@@ -614,8 +622,9 @@ export default function CompanyPage() {
                   <div className="tab-pane-content animation-fade-in">
                     {businessHours && typeof businessHours === 'object' && Object.keys(businessHours).length > 0 ? (
                       <div className="working-hours-container">
-                        {Object.entries(businessHours).map(([day, hours]) => {
-                          if (typeof hours === 'object' && hours !== null) {
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                          const hours = businessHours[day];
+                          if (hours && typeof hours === 'object') {
                             return (
                               <div key={day} className="working-hours-row">
                                 <span className="working-hours-day">{day} - </span>
@@ -649,6 +658,7 @@ export default function CompanyPage() {
                             <div className="review-feed-meta-box">
                               <div className="review-user-header-line">
                                 <span className="review-feed-username">{rev.name}</span>
+                                {rev.date && <span className="review-feed-date">{rev.date}</span>}
                                 <span className="review-feed-stars-badge">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</span>
                               </div>
                               <p className="review-feed-body-comment">{rev.comment}</p>

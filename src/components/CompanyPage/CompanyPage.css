@@ -23,6 +23,11 @@
   padding-top: 1.5rem;
 }
 
+.review-feed-date {
+  font-size: 0.8rem;
+  color: var(--secondary-dark);
+}
+
 /* ── Dynamic Layout Segmentation Structural Engine ── */
 .company-layout-row {
   display: flex;

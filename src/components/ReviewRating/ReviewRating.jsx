@@ -174,12 +174,13 @@ export default function ReviewRating({ reviewType = 'company', entityId, onRevie
 
       if (response.data) {
         onReviewAdded?.({
-          id: response.data.id,
-          name: formName.trim(),
-          rating: formRating,
-          comment: formText.trim(),
-          pic: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
-        });
+                id: response.data.id,
+                name: formName.trim(),
+                rating: formRating,
+                comment: formText.trim(),
+                pic: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
+                date: new Date().toLocaleDateString()
+              });
       }
 
       setStep('submitted');
