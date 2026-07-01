@@ -155,24 +155,72 @@ export default function ProductPage() {
             setSimilarProducts(similarList);
           }
 
-          // Fetch company info
+          // Fetch company info from companies API
           if (slugData.data.companyId) {
             try {
-              const companyResponse = await apiService.businesses.getById(slugData.data.companyId);
+              const companyResponse = await apiService.publicCompanies.getById(slugData.data.companyId);
               if (companyResponse.data) {
-                setCompanyInfo(companyResponse.data);
-                setBreadcrumbCompanyId(slugData.data.companyId);
-                const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
-                setBreadcrumbCompanyName(companyName);
+                const companyData = companyResponse.data.company || companyResponse.data;
                 
-                // Update breadcrumb city and category from company data
-                const companyCity = companyResponse.data.district || companyResponse.data.city || companyResponse.data.area || '';
-                setBreadcrumbCity(companyCity);
-                const companyCategory = companyResponse.data.category || companyResponse.data.categoryName || '';
+                const resolvedName = formatCompanyName(companyData.businessName || companyData.name || '');
+                const resolvedAddress = [companyData.area, companyData.district, companyData.state]
+                  .filter(Boolean)
+                  .join(', ') || companyData.address || "Address not available";
+                
+                setCompanyInfo({
+                  ...companyData,
+                  id: slugData.data.companyId,
+                  businessName: resolvedName,
+                  name: resolvedName,
+                  address: resolvedAddress,
+                  phone: companyData.mobileNumber || companyData.phone || "Phone not available",
+                  rating: companyData.rating || "0.0",
+                  reviewCount: companyData.reviewCount || 0
+                });
+
+                setBreadcrumbCompanyId(slugData.data.companyId);
+                setBreadcrumbCompanyName(resolvedName);
+                
+                const resolvedCity = companyData.district || companyData.city || companyData.area || '';
+                setBreadcrumbCity(resolvedCity);
+                const companyCategory = companyData.category || companyData.categoryName || '';
                 setBreadcrumbCategory(companyCategory);
               }
             } catch (err) {
-              console.error("Error fetching business/company info:", err);
+              console.error("Error fetching company info:", err);
+              // Fallback: try businesses API
+              try {
+                const businessResponse = await apiService.businesses.getById(slugData.data.companyId);
+                if (businessResponse.data) {
+                  const businessData = businessResponse.data.business || businessResponse.data;
+                  
+                  const businessName = formatCompanyName(businessData.businessName || businessData.name || '');
+                  const businessAddress = [businessData.area, businessData.district, businessData.state]
+                    .filter(Boolean)
+                    .join(', ') || businessData.address || "Address not available";
+                  
+                  setCompanyInfo({
+                    ...businessData,
+                    id: slugData.data.companyId,
+                    businessName: businessName,
+                    name: businessName,
+                    address: businessAddress,
+                    phone: businessData.mobileNumber || businessData.phone || "Phone not available",
+                    rating: businessData.rating || "0.0",
+                    reviewCount: businessData.reviewCount || 0
+                  });
+
+                  setBreadcrumbCompanyId(slugData.data.companyId);
+                  setBreadcrumbCompanyName(businessName);
+                  
+                  const businessCity = businessData.district || businessData.city || businessData.area || '';
+                  setBreadcrumbCity(businessCity);
+                  const businessCategory = businessData.category || businessData.categoryName || '';
+                  setBreadcrumbCategory(businessCategory);
+                }
+              } catch (businessErr) {
+                console.error("Error fetching business info as fallback:", businessErr);
+              }
             }
           }
 
@@ -245,18 +293,62 @@ export default function ProductPage() {
             setSimilarProducts(similarList);
           }
 
-          // Fetch company info
+          // Fetch company info from companies API
           if (location.state.productData.companyId) {
             try {
-              const companyResponse = await apiService.businesses.getById(location.state.productData.companyId);
+              const companyResponse = await apiService.publicCompanies.getById(location.state.productData.companyId);
               if (companyResponse.data) {
-                setCompanyInfo(companyResponse.data);
+                const companyData = companyResponse.data.company || companyResponse.data;
+                
+                const resolvedName = formatCompanyName(companyData.businessName || companyData.name || '');
+                const resolvedAddress = [companyData.area, companyData.district, companyData.state]
+                  .filter(Boolean)
+                  .join(', ') || companyData.address || "Address not available";
+                
+                setCompanyInfo({
+                  ...companyData,
+                  id: location.state.productData.companyId,
+                  businessName: resolvedName,
+                  name: resolvedName,
+                  address: resolvedAddress,
+                  phone: companyData.mobileNumber || companyData.phone || "Phone not available",
+                  rating: companyData.rating || "0.0",
+                  reviewCount: companyData.reviewCount || 0
+                });
+
                 setBreadcrumbCompanyId(location.state.productData.companyId);
-                const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
-                setBreadcrumbCompanyName(companyName);
+                setBreadcrumbCompanyName(resolvedName);
               }
             } catch (err) {
-              console.error("Error fetching business/company info:", err);
+              console.error("Error fetching company info:", err);
+              // Fallback: try businesses API
+              try {
+                const businessResponse = await apiService.businesses.getById(location.state.productData.companyId);
+                if (businessResponse.data) {
+                  const businessData = businessResponse.data.business || businessResponse.data;
+                  
+                  const businessName = formatCompanyName(businessData.businessName || businessData.name || '');
+                  const businessAddress = [businessData.area, businessData.district, businessData.state]
+                    .filter(Boolean)
+                    .join(', ') || businessData.address || "Address not available";
+                  
+                  setCompanyInfo({
+                    ...businessData,
+                    id: location.state.productData.companyId,
+                    businessName: businessName,
+                    name: businessName,
+                    address: businessAddress,
+                    phone: businessData.mobileNumber || businessData.phone || "Phone not available",
+                    rating: businessData.rating || "0.0",
+                    reviewCount: businessData.reviewCount || 0
+                  });
+
+                  setBreadcrumbCompanyId(location.state.productData.companyId);
+                  setBreadcrumbCompanyName(businessName);
+                }
+              } catch (businessErr) {
+                console.error("Error fetching business info as fallback:", businessErr);
+              }
             }
           }
 
@@ -329,18 +421,62 @@ export default function ProductPage() {
                 });
               setSimilarProducts(similarList);
 
-              // Fetch company info
+              // Fetch company info from companies API
               if (foundProduct.companyId) {
                 try {
-                  const companyResponse = await apiService.businesses.getById(foundProduct.companyId);
+                  const companyResponse = await apiService.publicCompanies.getById(foundProduct.companyId);
                   if (companyResponse.data) {
-                    setCompanyInfo(companyResponse.data);
+                    const companyData = companyResponse.data.company || companyResponse.data;
+                    
+                    const resolvedName = formatCompanyName(companyData.businessName || companyData.name || '');
+                    const resolvedAddress = [companyData.area, companyData.district, companyData.state]
+                      .filter(Boolean)
+                      .join(', ') || companyData.address || "Address not available";
+                    
+                    setCompanyInfo({
+                      ...companyData,
+                      id: foundProduct.companyId,
+                      businessName: resolvedName,
+                      name: resolvedName,
+                      address: resolvedAddress,
+                      phone: companyData.mobileNumber || companyData.phone || "Phone not available",
+                      rating: companyData.rating || "0.0",
+                      reviewCount: companyData.reviewCount || 0
+                    });
+
                     setBreadcrumbCompanyId(foundProduct.companyId);
-                    const companyName = companyResponse.data.businessName || companyResponse.data.name || '';
-                    setBreadcrumbCompanyName(companyName);
+                    setBreadcrumbCompanyName(resolvedName);
                   }
                 } catch (err) {
-                  console.error("Error fetching business/company info:", err);
+                  console.error("Error fetching company info:", err);
+                  // Fallback: try businesses API
+                  try {
+                    const businessResponse = await apiService.businesses.getById(foundProduct.companyId);
+                    if (businessResponse.data) {
+                      const businessData = businessResponse.data.business || businessResponse.data;
+                      
+                      const businessName = formatCompanyName(businessData.businessName || businessData.name || '');
+                      const businessAddress = [businessData.area, businessData.district, businessData.state]
+                        .filter(Boolean)
+                        .join(', ') || businessData.address || "Address not available";
+                      
+                      setCompanyInfo({
+                        ...businessData,
+                        id: foundProduct.companyId,
+                        businessName: businessName,
+                        name: businessName,
+                        address: businessAddress,
+                        phone: businessData.mobileNumber || businessData.phone || "Phone not available",
+                        rating: businessData.rating || "0.0",
+                        reviewCount: businessData.reviewCount || 0
+                      });
+
+                      setBreadcrumbCompanyId(foundProduct.companyId);
+                      setBreadcrumbCompanyName(businessName);
+                    }
+                  } catch (businessErr) {
+                    console.error("Error fetching business info as fallback:", businessErr);
+                  }
                 }
               }
 
@@ -450,96 +586,79 @@ export default function ProductPage() {
             });
           setSimilarProducts(similarList);
 
-          // Two-step company data fetch:
-          // Step 1: Fetch business by product's companyId (business ID) to get business details + actual companyId
-          // Step 2: Fetch company by the business's companyId to get full address details
+          // Fetch company data from companies API using product's companyId
           if (foundProduct.companyId) {
             try {
-              // Step 1: Fetch business record - this has the actual companyId reference
-              const businessResponse = await apiService.businesses.getById(foundProduct.companyId);
-              if (businessResponse.data) {
-                const businessData = businessResponse.data.business || businessResponse.data;
+              const companyResponse = await apiService.publicCompanies.getById(foundProduct.companyId);
+              if (companyResponse.data) {
+                const companyData = companyResponse.data.company || companyResponse.data;
                 
-                // Extract companyId from the business record
-                const actualCompanyId = businessData.companyId || businessData.company_id || '';
+                const resolvedName = formatCompanyName(companyData.businessName || companyData.name || breadcrumbCompanyName);
+                const resolvedAddress = [companyData.area, companyData.district, companyData.state]
+                  .filter(Boolean)
+                  .join(', ') || companyData.address || "Address not available";
                 
-                // Update breadcrumb company name from business data (fallback)
-                const businessName = formatCompanyName(businessData.businessName || businessData.name || breadcrumbCompanyName);
-                setBreadcrumbCompanyName(businessName);
-
-                // Store full business-level info as fallback
                 setCompanyInfo({
-                  ...businessData,
-                  id: actualCompanyId || foundProduct.companyId,
-                  businessName: businessName,
-                  name: businessName,
-                  address: [businessData.area, businessData.district, businessData.state]
-                    .filter(Boolean)
-                    .join(', ') || businessData.address || "Address not available",
-                  phone: businessData.mobileNumber || businessData.phone || '',
-                  rating: businessData.rating || "0.0",
-                  reviewCount: businessData.reviewCount || 0
+                  ...companyData,
+                  id: foundProduct.companyId,
+                  businessName: resolvedName,
+                  name: resolvedName,
+                  address: resolvedAddress,
+                  phone: companyData.mobileNumber || companyData.phone || "Phone not available",
+                  rating: companyData.rating || "0.0",
+                  reviewCount: companyData.reviewCount || 0
                 });
 
-                // Update breadcrumb with business data if available
-                if (businessData.district || businessData.city || businessData.area) {
-                  setBreadcrumbCity(businessData.district || businessData.city || businessData.area);
-                }
+                // Update breadcrumb with company data
+                setBreadcrumbCompanyId(foundProduct.companyId);
+                setBreadcrumbCompanyName(resolvedName);
+                
+                const resolvedCity = companyData.district || companyData.city || companyData.area || breadcrumbCity;
+                setBreadcrumbCity(resolvedCity);
 
-                // Update breadcrumb category from business data (Businesses API)
-                if (businessData.category || businessData.categoryName) {
-                  setBreadcrumbCategory(businessData.category || businessData.categoryName);
-                }
-
-                // Step 2: If we have an actual companyId, fetch the company for full address details
-                if (actualCompanyId) {
-                  try {
-                    const companyResponse = await apiService.publicCompanies.getById(actualCompanyId);
-                    if (companyResponse.data) {
-                      const companyData = companyResponse.data.company || companyResponse.data;
-                      
-                      const resolvedName = formatCompanyName(companyData.businessName || companyData.name || businessName);
-                      const resolvedAddress = [companyData.area, companyData.district, companyData.state]
-                        .filter(Boolean)
-                        .join(', ') || companyData.address || businessData.address || "Address not available";
-                      
-                      setCompanyInfo({
-                        ...companyData,
-                        id: actualCompanyId,
-                        businessName: resolvedName,
-                        name: resolvedName,
-                        address: resolvedAddress,
-                        phone: companyData.mobileNumber || companyData.phone || businessData.phone || '',
-                        rating: companyData.rating || businessData.rating || "0.0",
-                        reviewCount: companyData.reviewCount || businessData.reviewCount || 0
-                      });
-
-                      // Update breadcrumb with full company data
-                      setBreadcrumbCompanyId(actualCompanyId);
-                      setBreadcrumbCompanyName(resolvedName);
-                      
-                      const resolvedCity = companyData.district || companyData.city || companyData.area || breadcrumbCity;
-                      setBreadcrumbCity(resolvedCity);
-
-                      // Update breadcrumb category from company data if business data didn't have it
-                      if (!breadcrumbCategory && (companyData.category || companyData.categoryName)) {
-                        setBreadcrumbCategory(companyData.category || companyData.categoryName);
-                      }
-                    }
-                  } catch (companyErr) {
-                    // Company API failed, we already have business data as fallback
-                    // Keep the business's companyId for breadcrumb navigation
-                    setBreadcrumbCompanyId(actualCompanyId);
-                  }
-                } else {
-                  // No actual companyId, use the product's companyId as the business ID for navigation
-                  setBreadcrumbCompanyId(foundProduct.companyId);
+                // Update breadcrumb category from company data
+                if (companyData.category || companyData.categoryName) {
+                  setBreadcrumbCategory(companyData.category || companyData.categoryName);
                 }
               }
             } catch (err) {
-              console.error("Error fetching business/company info:", err);
-              // Fallback: use product's companyId directly for breadcrumb
-              if (foundProduct.companyId) {
+              console.error("Error fetching company info:", err);
+              // Fallback: try fetching from businesses API
+              try {
+                const businessResponse = await apiService.businesses.getById(foundProduct.companyId);
+                if (businessResponse.data) {
+                  const businessData = businessResponse.data.business || businessResponse.data;
+                  
+                  const businessName = formatCompanyName(businessData.businessName || businessData.name || breadcrumbCompanyName);
+                  const businessAddress = [businessData.area, businessData.district, businessData.state]
+                    .filter(Boolean)
+                    .join(', ') || businessData.address || "Address not available";
+                  
+                  setCompanyInfo({
+                    ...businessData,
+                    id: foundProduct.companyId,
+                    businessName: businessName,
+                    name: businessName,
+                    address: businessAddress,
+                    phone: businessData.mobileNumber || businessData.phone || "Phone not available",
+                    rating: businessData.rating || "0.0",
+                    reviewCount: businessData.reviewCount || 0
+                  });
+
+                  setBreadcrumbCompanyId(foundProduct.companyId);
+                  setBreadcrumbCompanyName(businessName);
+                  
+                  if (businessData.district || businessData.city || businessData.area) {
+                    setBreadcrumbCity(businessData.district || businessData.city || businessData.area);
+                  }
+
+                  if (businessData.category || businessData.categoryName) {
+                    setBreadcrumbCategory(businessData.category || businessData.categoryName);
+                  }
+                }
+              } catch (businessErr) {
+                console.error("Error fetching business info as fallback:", businessErr);
+                // Final fallback: use product's companyId for breadcrumb
                 setBreadcrumbCompanyId(foundProduct.companyId);
               }
             }
