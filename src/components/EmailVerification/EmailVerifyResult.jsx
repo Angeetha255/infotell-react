@@ -1,66 +1,56 @@
 import React, { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import './EmailVerifyResult.css';
 
 /**
  * EmailVerifyResult
  *
- * Landing page after the backend validates the magic-link token.
- * The backend redirects here as:
+ * Landing page the backend redirects to after validating the magic-link token.
  *
+ * Backend sends:
  *   Success: /verify-email-result?verified=true&verifiedEmail=...&returnUrl=...
  *   Failure: /verify-email-result?verified=false&reason=invalid|expired|used&returnUrl=...
  *
  * On SUCCESS:
- *   - Immediately navigate() to the original review page (returnUrl)
- *   - Pass { openReviewForm: true, verifiedEmail } via React Router state
- *   - ReviewRating picks up the state and opens the form automatically
- *   - The token never appears in the final review page URL
+ *   1. Write verifiedEmail + emailVerified flag to sessionStorage
+ *   2. Use window.location.href (full navigation) back to the original review page
+ *      — this guarantees ReviewRating's useEffect fires on a fresh mount,
+ *        regardless of SlugResolver's async loading delay.
  *
  * On FAILURE:
- *   - Show a clear error message with a "Try Again" button
- *   - "Try Again" navigates back to the review page where the user can
- *     re-enter their email and request a new link
+ *   Show the appropriate error with a "Try Again" button that navigates back.
  */
 export default function EmailVerifyResult() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const redirected = useRef(false); // guard against double-fire in StrictMode
+  const redirected = useRef(false);
 
-  const verified    = searchParams.get('verified') === 'true';
+  const verified      = searchParams.get('verified') === 'true';
   const verifiedEmail = searchParams.get('verifiedEmail') || '';
-  const reason      = searchParams.get('reason') || 'invalid';
-
-  // The backend encodes the original review page path here
+  const reason        = searchParams.get('reason') || 'invalid';
   const rawReturnUrl  = searchParams.get('returnUrl') || '';
-  // Also fall back to whatever the user's browser saved before leaving
-  const savedPath     = sessionStorage.getItem('reviewReturnPath') || '/';
-  const returnPath    = rawReturnUrl
-    ? (rawReturnUrl.startsWith('/') ? rawReturnUrl : `/${rawReturnUrl}`)
-    : (savedPath.startsWith('/')   ? savedPath     : `/${savedPath}`);
 
-  // ── Success: navigate back to review page immediately ─────────────────────
+  // Build the safe return path — always a relative path like /some-slug
+  const returnPath = rawReturnUrl
+    ? (rawReturnUrl.startsWith('/') ? rawReturnUrl : `/${rawReturnUrl}`)
+    : (sessionStorage.getItem('reviewReturnPath') || '/');
+
+  // ── SUCCESS ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!verified || redirected.current) return;
     redirected.current = true;
 
-    // Write to sessionStorage FIRST so ReviewRating can read it on mount,
-    // regardless of whether it mounts before or after the navigate() call.
-    // (SlugResolver delays CompanyPage mount by doing async API calls first,
-    //  so location.state alone is not reliable — sessionStorage is.)
+    // 1. Persist verified session so ReviewRating reads it on mount
     sessionStorage.setItem('emailVerified', 'true');
     sessionStorage.setItem('verifiedEmail', verifiedEmail);
     sessionStorage.removeItem('reviewReturnPath');
 
-    // Navigate to the review page. Also pass state as a secondary signal
-    // for cases where the page mounts synchronously (direct routes).
-    navigate(returnPath, {
-      replace: true,
-      state: { openReviewForm: true, verifiedEmail },
-    });
-  }, [verified, verifiedEmail, navigate, returnPath]);
+    // 2. Full page navigation — clears React state, forces fresh mount of
+    //    ReviewRating which will pick up sessionStorage on its first render.
+    //    This is the only reliable way to handle SlugResolver's async delay.
+    window.location.href = returnPath;
+  }, [verified, verifiedEmail, returnPath]);
 
-  // While redirect is in progress show a brief loading screen
+  // Show a brief "Verified!" screen while the redirect fires
   if (verified) {
     return (
       <div className="evr-page">
@@ -71,43 +61,45 @@ export default function EmailVerifyResult() {
             Redirecting you back to the review form…
           </p>
           <div className="evr-progress-bar">
-            <div className="evr-progress-fill" style={{ animationDuration: '1.2s' }} />
+            <div className="evr-progress-fill" style={{ animationDuration: '0.8s' }} />
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Failure state ─────────────────────────────────────────────────────────
-  const reasonMessages = {
+  // ── FAILURE ────────────────────────────────────────────────────────────────
+  const messages = {
     expired: {
       icon: '⏱',
       heading: 'Link Expired',
       body: 'This verification link has expired. Magic links are valid for 30 minutes.',
-      action: 'Please go back and request a new verification email.',
+      action: 'Please go back and request a new verification link.',
     },
     used: {
       icon: '🔒',
       heading: 'Link Already Used',
-      body: 'This verification link has already been used.',
-      action: 'Each link is single-use. Please go back and request a new one.',
+      body: 'This verification link has already been used. Each link is single-use.',
+      action: 'Please go back and request a new verification link.',
     },
     invalid: {
       icon: '❌',
       heading: 'Invalid Link',
-      body: 'This verification link is invalid or has expired.',
-      action: 'Please go back and request a new verification email.',
+      body: 'This verification link is invalid or has been tampered with.',
+      action: 'Please go back and request a new verification link.',
     },
   };
 
-  const msg = reasonMessages[reason] || reasonMessages.invalid;
+  const msg = messages[reason] || messages.invalid;
 
   const handleTryAgain = () => {
     sessionStorage.removeItem('reviewReturnPath');
-    navigate(returnPath, { replace: true });
+    window.location.href = returnPath;
   };
 
-  const handleGoHome = () => navigate('/', { replace: true });
+  const handleGoHome = () => {
+    window.location.href = '/';
+  };
 
   return (
     <div className="evr-page">

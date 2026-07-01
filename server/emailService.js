@@ -74,7 +74,7 @@ async function sendVerificationEmail(to, magicLink, returnUrl) {
         ⏱ This link is valid for <strong>30 minutes</strong> and can only be used once.
       </div>
       <p>If you did not request this, you can safely ignore this email. No account will be created.</p>
-      <p class="fallback">If the button doesn't work, copy and paste this URL into your browser:<br />${magicLink}</p>
+      
     </div>
     <div class="footer">
       © ${new Date().getFullYear()} Infotell. This is an automated message — please do not reply.

@@ -1,93 +1,77 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
 import { apiService } from '../../services/api';
 import './ReviewRating.css';
 
 /**
  * ReviewRating
  *
- * A fully-wired review submission widget with Nodemailer magic-link email
- * verification.
+ * Email-verified review widget. Flow:
  *
- * Flow:
- *   1. User clicks "Write a Review" → Verification modal appears
- *   2. User enters email → backend sends magic link via Nodemailer
- *   3. User clicks link in email → backend validates token → redirects back
- *      to this page with ?verified=true&verifiedEmail=... in sessionStorage
- *   4. Component detects verified session → opens review form automatically
- *   5. User fills form and submits → review saved via existing API
- *
- * Props:
- *   reviewType  : 'company' | 'product'
- *   entityId    : businessId or productId (required for API submission)
- *   onReviewAdded : optional callback({ id, name, rating, comment }) after submit
+ *  1. User clicks "Write a Review" → email modal opens
+ *  2. User enters email → POST /api/verify/send → Nodemailer sends magic link
+ *  3. User clicks link → backend validates → redirects to /verify-email-result
+ *  4. EmailVerifyResult writes to sessionStorage → window.location.href back here
+ *  5. This component mounts fresh → reads sessionStorage → opens review form
+ *  6. User submits → POST /api/public/reviews
  */
 export default function ReviewRating({ reviewType = 'company', entityId, onReviewAdded }) {
-  const location = useLocation();
-  const verificationConsumed = useRef(false); // prevent double-consuming on re-renders
+  const consumed = useRef(false);
 
-  // ── Verification states ────────────────────────────────────────────────────
-  const [step, setStep] = useState('idle'); // 'idle' | 'modal' | 'sent' | 'verified' | 'submitted'
+  // ── Step states ────────────────────────────────────────────────────────────
+  // 'idle' | 'modal' | 'sent' | 'verified' | 'submitted'
+  const [step, setStep] = useState('idle');
   const [verifiedEmail, setVerifiedEmail] = useState('');
 
-  // Modal email input
-  const [emailInput, setEmailInput] = useState('');
+  // Modal / send state
+  const [emailInput, setEmailInput]   = useState('');
   const [sendLoading, setSendLoading] = useState(false);
-  const [sendError, setSendError] = useState('');
+  const [sendError,   setSendError]   = useState('');
   const [sendSuccess, setSendSuccess] = useState(false);
 
-  // Review form fields
-  const [formName, setFormName] = useState('');
-  const [formRating, setFormRating] = useState(5);
-  const [formText, setFormText] = useState('');
+  // Review form state
+  const [formName,      setFormName]      = useState('');
+  const [formRating,    setFormRating]    = useState(5);
+  const [formText,      setFormText]      = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError,   setSubmitError]   = useState('');
 
-  // ── Detect verified session after magic-link redirect ───────────────────────
+  // ── Detect verified session on mount ─────────────────────────────────────
+  // EmailVerifyResult does window.location.href back to this page after writing
+  // to sessionStorage — so this component always mounts fresh and we simply
+  // check sessionStorage once on mount. No location.state tricks needed.
   useEffect(() => {
-    if (verificationConsumed.current) return;
+    if (consumed.current) return;
 
-    // PRIMARY: sessionStorage — set by EmailVerifyResult before navigate().
-    // Reliable even when this component mounts late due to SlugResolver's
-    // async API fetch (company/product lookup before rendering this page).
     const storedVerified = sessionStorage.getItem('emailVerified');
     const storedEmail    = sessionStorage.getItem('verifiedEmail');
 
-    // SECONDARY: React Router location.state — for synchronous route renders.
-    const stateEmail = location.state?.openReviewForm
-      ? location.state?.verifiedEmail
-      : null;
+    if (storedVerified === 'true' && storedEmail) {
+      consumed.current = true;
 
-    const email = (storedVerified === 'true' && storedEmail)
-      ? storedEmail
-      : stateEmail;
-
-    if (email) {
-      verificationConsumed.current = true;
-      setVerifiedEmail(email);
-      setEmailInput(email);
-      setStep('verified');
-
-      // Consume so a page refresh does not re-open the form
+      // Consume immediately — prevents re-opening on manual page refresh
       sessionStorage.removeItem('emailVerified');
       sessionStorage.removeItem('verifiedEmail');
 
-      // Scroll into view after paint
+      setVerifiedEmail(storedEmail);
+      setEmailInput(storedEmail);
+      setStep('verified');
+
+      // Scroll the form into view
       setTimeout(() => {
         const el = document.getElementById('rr-review-form-anchor');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 300);
     }
-  }); // intentionally no dep array — runs after every render until consumed via ref guard
+  }, []); // run once on mount only
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  /** Build the returnUrl (path only) so the backend can redirect back here */
+  /** Return path of the current page — sent to backend as the magic-link return destination */
   const getReturnPath = useCallback(() => {
-    return location.pathname + (location.search || '');
-  }, [location]);
+    return window.location.pathname + window.location.search;
+  }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
