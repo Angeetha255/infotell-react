@@ -1131,7 +1131,16 @@ export default function ProductPage() {
             </div>
           )}
         </div>
-        <ReviewRating reviewType={"product"} />
+        <ReviewRating
+          reviewType={"product"}
+          entityId={productData?.id || productId}
+          onReviewAdded={(newReview) =>
+            setUserComments((prev) => [
+              { id: newReview.id, user: newReview.name, rating: newReview.rating, date: 'Just now', text: newReview.comment },
+              ...prev,
+            ])
+          }
+        />
       </div>
 
       <EnquiryModal

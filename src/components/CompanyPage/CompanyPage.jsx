@@ -688,7 +688,11 @@ export default function CompanyPage() {
             </div>
 
             {/* REVIEW & RATING SECTION WITH CONDITIONAL EMAIL VERIFICATION GATEWAY */}
-            <ReviewRating reviewType={'company'}/>
+            <ReviewRating
+              reviewType={'company'}
+              entityId={companyData?.id || id}
+              onReviewAdded={(newReview) => setReviews((prev) => [newReview, ...prev])}
+            />
 
           </div>
 

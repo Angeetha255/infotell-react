@@ -1,0 +1,135 @@
+/* ── Email Verify Result Page ───────────────────────────────────────────── */
+
+.evr-page {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: #f1f5f9;
+}
+
+.evr-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-top: 5px solid transparent;
+}
+
+.evr-card--success {
+  border-top-color: #16a34a;
+}
+
+.evr-card--error {
+  border-top-color: #dc2626;
+}
+
+.evr-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.evr-heading {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.evr-heading--success {
+  color: #16a34a;
+}
+
+.evr-heading--error {
+  color: #dc2626;
+}
+
+.evr-body {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.65;
+  margin-bottom: 0.75rem;
+}
+
+.evr-action-hint {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin-bottom: 1.75rem;
+}
+
+.evr-redirect-notice {
+  font-size: 0.9rem;
+  color: #475569;
+  margin-bottom: 1rem;
+}
+
+/* Progress bar for auto-redirect countdown */
+.evr-progress-bar {
+  background: #e2e8f0;
+  border-radius: 99px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 1.75rem;
+}
+
+.evr-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+  border-radius: 99px;
+  width: 100%;
+  animation: evr-shrink linear forwards;
+}
+
+@keyframes evr-shrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* Buttons */
+.evr-btn-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.evr-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+}
+
+.evr-btn:hover {
+  opacity: 0.88;
+}
+
+.evr-btn--primary {
+  background: linear-gradient(135deg, #4e0105, #7b0a10);
+  color: #ffffff;
+}
+
+.evr-btn--secondary {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+@media (max-width: 480px) {
+  .evr-card {
+    padding: 2rem 1.5rem;
+  }
+  .evr-btn-row {
+    flex-direction: column;
+  }
+  .evr-btn {
+    width: 100%;
+  }
+}

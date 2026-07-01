@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5006/api/public';
+const EMAIL_VERIFY_BASE_URL = 'http://localhost:5007/api/verify';
 
 // Create axios instance with default configuration
 const api = axios.create({
@@ -143,6 +144,18 @@ export const apiService = {
   // Leads/Enquiries
   leads: {
     create: (data) => api.post('/leads', data),
+  },
+
+  // Email Verification (magic-link, local server on :5007)
+  emailVerification: {
+    /**
+     * Send a magic-link verification email.
+     * @param {{ email: string, returnUrl: string }} data
+     */
+    sendLink: (data) =>
+      axios.post(`${EMAIL_VERIFY_BASE_URL}/send`, data, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
   },
 };
 

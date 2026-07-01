@@ -4,11 +4,14 @@ import CompanyPage from './pages/CompanyPage';
 import LoginPage from './pages/LoginPage';
 import ProductPage from './pages/ProductPage';
 import SlugResolver from './components/SlugResolver/SlugResolver';
+import EmailVerifyResult from './components/EmailVerification/EmailVerifyResult';
 
 const routes = [
   { path: '/',                    element: HomePage,      exact: true },
   // Static routes first (highest priority)
   { path: '/login',               element: LoginPage },
+  // Email verification result page (after clicking magic link)
+  { path: '/verify-email-result', element: EmailVerifyResult },
   // Backward compatibility routes (old patterns - specific paths)
   { path: '/category/:city/:query', element: CategoryPage },
   { path: '/company/:id?',        element: CompanyPage },
